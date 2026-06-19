@@ -1,4 +1,46 @@
-h((input) => {
+ input.value = '0';
+    input.disabled = true;
+  });
+  ui.applyMoveHole.disabled = true;
+}
+
+function clearBoxPlacement() {
+  boxPlacement = null;
+  if (boxPreview) {
+    scene.remove(boxPreview);
+    disposeObject(boxPreview);
+    boxPreview = null;
+  }
+  ui.boxInfo.textContent = 'Clicca dove vuoi appoggiare il parallelepipedo.';
+  ui.boxOffsetInputs.forEach((input) => {
+    input.value = '0';
+  });
+  ui.applyBox.disabled = true;
+}
+
+function clearCylinderPlacement() {
+  cylinderPlacement = null;
+  if (cylinderPreview) {
+    scene.remove(cylinderPreview);
+    disposeObject(cylinderPreview);
+    cylinderPreview = null;
+  }
+  ui.cylinderInfo.textContent = 'Clicca dove vuoi appoggiare il cilindro.';
+  ui.cylinderOffsetInputs.forEach((input) => {
+    input.value = '0';
+  });
+  ui.applyCylinder.disabled = true;
+}
+
+function clearCutPlacement() {
+  cutPlacement = null;
+  if (cutPreview) {
+    scene.remove(cutPreview);
+    disposeObject(cutPreview);
+    cutPreview = null;
+  }
+  ui.cutInfo.textContent = 'Scegli forma e clicca dove vuoi togliere materiale.';
+  ui.cutOffsetInputs.forEach((input) => {
     input.value = '0';
   });
   ui.applyCut.disabled = true;
@@ -7,12 +49,16 @@ h((input) => {
 function clearSketch() {
   sketchPoints = [];
   sketchClosed = false;
+  sketchPreviewPoint = null;
+  sketchPreviewAxis = null;
+  sketchLengthInput = '';
   if (sketchPreview) {
     scene.remove(sketchPreview);
     disposeObject(sketchPreview);
     sketchPreview = null;
   }
   ui.sketchInfo.textContent = 'Clicca i punti della sagoma. Torna vicino al primo punto per chiuderla.';
+  updateMeasureBoxMode();
   ui.applySketch.disabled = true;
 }
 
@@ -172,6 +218,7 @@ function updateInspector() {
     'open',
     ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'line', 'measure'].includes(activeTool),
   );
+  updateMeasureBoxMode();
 }
 
 function setTool(tool) {
@@ -377,34 +424,4 @@ function drawMeasurement(end, preview = false) {
   measurementGroup.add(createPointMarker(end, preview ? 0xffcf47 : measureColors.total, markerRadius));
   addTransientOverlay(measurementGroup, 'measurement');
 
-  const result = calculateMeasurement(start, end);
-  updateMeasurementPanel(result, preview);
-}
-
-function updateMeasurementPanel(result, preview = false) {
-  measurementResult = result;
-  ui.measureTotal.textContent = formatMillimeters(result.total);
-  ui.measureX.textContent = formatMillimeters(result.dx, true);
-  ui.measureY.textContent = formatMillimeters(result.dy, true);
-  ui.measureZ.textContent = formatMillimeters(result.dz, true);
-  const axis = result.dominantAxis.toUpperCase();
-  ui.measureAxisSummary.textContent = result.isAxisAligned
-    ? `Misura allineata con l'asse ${axis}.`
-    : `Misura 3D. Componente principale sull'asse ${axis}.`;
-  ui.measureValue.value = formatMillimeters(result.total);
-  if (preview) ui.measureAxisSummary.textContent += ' Clicca per confermare.';
-}
-
-function measureAt(clientX, clientY) {
-  const hit = raycastModel(clientX, clientY);
-  if (!hit) {
-    setStatus('Clicca un punto sulla superficie del modello.');
-    return;
-  }
-
-  if (!measurementStart || measurementEnd) {
-    clearMeasurement();
-    measurementStart = hit.point.clone();
-    drawMeasurement(measurementStart, true);
-    ui.measureAxisSummary.textContent = 'Primo punto fissato. Clicca il secondo punto.';
-    setStatus('Primo punto fissato. Ora clicca il s
+  const result = calculateMeasurement(start, end
