@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f1eb" />
+    <title>Forma 3D - Editor STL</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">F3</span>
+        <div>
+          <strong>Forma 3D</strong>
+          <span id="file-name">Modello senza titolo</span>
+        </div>
+      </div>
+      <nav class="file-actions" aria-label="Azioni file">
+        <button id="open-file" class="top-button">
+          <span class="button-icon">O</span> Apri STL
+        </button>
+        <button id="export-file" class="top-button primary">
+          <span class="button-icon">E</span> Esporta STL
+        </button>
+        <input id="file-input" type="file" accept=".stl" hidden />
+      </nav>
+    </header>
+
+    <main id="workspace">
+      <aside class="toolbar" aria-label="Strumenti">
+        <button class="tool active" data-tool="select" title="Seleziona (Spazio)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l13 9-7 1.5L8 20z"/></svg>
+          <span>Seleziona</span>
+        </button>
+        <button class="tool" data-tool="pushpull" title="Spingi/Tira (P)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7-4 7 4-7 4zM5 13l7 4 7-4v5l-7 4-7-4z"/><path d="M12 13V5"/></svg>
+          <span>Spingi/Tira</span>
+        </button>
+        <button class="tool" data-tool="hole" title="Foro (H)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="7" rx="7" ry="4"/><path d="M5 7v9c0 2.2 3.1 4 7 4s7-1.8 7-4V7M9 7c0 1 1.3 1.8 3 1.8S15 8 15 7"/></svg>
+          <span>Foro</span>
+        </button>
+        <button class="tool" data-tool="movehole" title="Sposta foro (F)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="8" cy="12" rx="4" ry="6"/><path d="M12 12h8M17 9l3 3-3 3"/></svg>
+          <span>Sposta foro</span>
+        </button>
+        <button class="tool" data-tool="box" title="Parallelepipedo (B)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7-4 7 4v8l-7 4-7-4z"/><path d="M5 8l7 4 7-4M12 12v8"/></svg>
+          <span>Box</span>
+        </button>
+        <button class="tool" data-tool="cylinder" title="Cilindro (C)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="6" ry="3"/><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"/></svg>
+          <span>Cilindro</span>
+        </button>
+        <button class="tool" data-tool="cut" title="Sottrai solido (T)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l7-4 7 4v8l-7 4-7-4z"/><path d="M4 8l7 4 7-4M11 12v8"/><path d="M14 11h7M18 8l3 3-3 3"/></svg>
+          <span>Sottrai</span>
+        </button>
+        <button class="tool" data-tool="line" title="Linea (L)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L9 8l5 5 6-7"/><circle cx="4" cy="18" r="2"/><circle cx="9" cy="8" r="2"/><circle cx="14" cy="13" r="2"/><circle cx="20" cy="6" r="2"/></svg>
+          <span>Linea</span>
+        </button>
+        <button class="tool" data-tool="measure" title="Misura (M)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17L17 4l3 3L7 20z"/><path d="M9 15l-2-2M12 12l-2-2M15 9l-2-2"/></svg>
+          <span>Misura</span>
+        </button>
+        <div class="tool-divider"></div>
+        <button class="tool" data-tool="orbit" title="Orbita (O)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a8 8 0 0113-2l2-2v6h-6l2-2a5.5 5.5 0 10.5 8"/><path d="M9 12l3-3 3 3-3 3z"/></svg>
+          <span>Orbita</span>
+        </button>
+        <button class="tool" data-tool="pan" title="Panoramica">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V6a1.5 1.5 0 013 0v4-6a1.5 1.5 0 013 0v6-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v6c0 4-2.8 7-7 7-2.5 0-4.5-1.2-6-3l-2-3a1.5 1.5 0 012.3-1.9L8 15z"/></svg>
+          <span>Panoramica</span>
+        </button>
+        <button class="tool" data-tool="zoomfit" title="Inquadra tutto">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5L21 21M7 10h6M10 7v6"/></svg>
+          <span>Inquadra</span>
+        </button>
+      </aside>
+
+      <section id="viewport" aria-label="Area di modellazione 3D">
+        <canvas id="canvas"></canvas>
+        <div id="empty-state" class="empty-state">
+          <strong>Apri un file STL</strong>
+          <span>oppure prova subito sul blocco di esempio</span>
+        </div>
+        <div id="hint" class="hint">
+          Clic sinistro: seleziona · Rotellina premuta: orbita · Rotellina: zoom · Tasto destro: panoramica
+        </div>
+        <div class="view-cube" aria-label="Viste modello">
+          <button data-view="top">ALTO</button>
+          <button data-view="front">FRONTE</button>
+          <button data-view="iso">3D</button>
+        </div>
+        <div class="axis-labels" aria-hidden="true">
+          <span class="axis x">X</span>
+          <span class="axis y">Y</span>
+          <span class="axis z">Z</span>
+        </div>
+      </section>
+
+      <aside id="inspector" class="inspector">
+        <div class="inspector-heading">
+          <div>
+            <span class="eyebrow">STRUMENTO</span>
+            <h2 id="panel-title">Seleziona</h2>
+          </div>
+          <button id="close-panel" class="icon-button" aria-label="Chiudi">x</button>
+        </div>
+        <p id="panel-description">Clicca una superficie del modello per selezionarla.</p>
+
+        <form id="pushpull-form" class="tool-form" hidden>
+          <label for="pushpull-distance">Distanza</label>
+          <div class="field-with-unit">
+            <input id="pushpull-distance" type="text" inputmode="decimal" step="0.1" value="5" />
+            <span>mm</span>
+          </div>
+          <small>Valore positivo: tira. Valore negativo: spingi.</small>
+          <button type="submit" class="action-button">Applica Spingi/Tira</button>
+        </form>
+
+        <form id="hole-form" class="tool-form hole-form" hidden>
+          <div class="hole-readout">
+            <span>Centro foro</span>
+            <strong id="hole-create-info">Nessun punto selezionato</strong>
+            <small id="hole-create-axis">Clicca una superficie per impostare centro e direzione.</small>
+          </div>
+          <label for="hole-diameter">Diametro</label>
+          <div class="field-with-unit">
+            <input id="hole-diameter" type="text" inputmode="decimal" min="0.2" step="0.1" value="8" />
+            <span>mm</span>
+          </div>
+          <label for="hole-depth">Profondita</label>
+          <div class="field-with-unit">
+            <input id="hole-depth" type="text" inputmode="decimal" min="0.2" step="0.1" value="20" />
+            <span>mm</span>
+          </div>
+          <div class="offset-grid">
+            <label for="hole-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="hole-offset-x" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+            <label for="hole-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="hole-offset-y" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+            <label for="hole-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="hole-offset-z" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+          </div>
+          <small id="hole-create-help">Il foro parte dal punto scelto e procede dentro il pezzo.</small>
+          <button id="apply-hole" type="button" class="action-button" disabled>Crea foro</button>
+          <button id="reset-hole" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="move-hole-form" class="tool-form move-hole-form" hidden>
+          <div class="hole-readout">
+            <span>Foro riconosciuto</span>
+            <strong id="move-hole-info">Nessun foro selezionato</strong>
+            <small id="move-hole-axis">Clicca la parete interna del foro.</small>
+          </div>
+          <div class="offset-grid">
+            <label for="move-hole-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="move-hole-x" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+            <label for="move-hole-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="move-hole-y" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+            <label for="move-hole-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="move-hole-z" type="text" inputmode="decimal" step="0.1" value="0" disabled />
+              <span>mm</span>
+            </div>
+          </div>
+          <small id="move-hole-help">Dopo aver scelto il foro, clicca il nuovo centro sulla piastra.</small>
+          <button id="apply-move-hole" type="submit" class="action-button" disabled>Sposta il foro</button>
+          <button id="reset-move-hole" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="box-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Punto di appoggio</span>
+            <strong id="box-info">Clicca dove vuoi appoggiare il parallelepipedo.</strong>
+            <small>Si aggancia a vertici vicini o alla griglia da 1 mm.</small>
+          </div>
+          <label for="box-operation">Operazione</label>
+          <select id="box-operation">
+            <option value="add">Somma al solido</option>
+            <option value="subtract">Sottrai dal solido</option>
+          </select>
+          <div class="offset-grid">
+            <label for="box-width" class="axis-x">Larghezza X</label>
+            <div class="field-with-unit">
+              <input id="box-width" type="text" inputmode="decimal" min="0.1" step="0.1" value="30" />
+              <span>mm</span>
+            </div>
+            <label for="box-depth" class="axis-y">Profondita Y</label>
+            <div class="field-with-unit">
+              <input id="box-depth" type="text" inputmode="decimal" min="0.1" step="0.1" value="30" />
+              <span>mm</span>
+            </div>
+            <label for="box-height" class="axis-z">Altezza Z</label>
+            <div class="field-with-unit">
+              <input id="box-height" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
+              <span>mm</span>
+            </div>
+            <label for="box-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="box-offset-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="box-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="box-offset-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="box-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="box-offset-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+          </div>
+          <small>Il punto cliccato e' il centro della base. Arancione sottrae, verde somma.</small>
+          <button id="apply-box" type="button" class="action-button" disabled>Applica box</button>
+          <button id="reset-box" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="cylinder-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Centro base</span>
+            <strong id="cylinder-info">Clicca dove vuoi appoggiare il cilindro.</strong>
+            <small>Asse su faccia usa la normale della superficie cliccata.</small>
+          </div>
+          <label for="cylinder-operation">Operazione</label>
+          <select id="cylinder-operation">
+            <option value="add">Somma al solido</option>
+            <option value="subtract">Sottrai dal solido</option>
+          </select>
+          <label for="cylinder-axis">Asse</label>
+          <select id="cylinder-axis">
+            <option value="face">Asse della faccia</option>
+            <option value="z">Asse Z</option>
+            <option value="x">Asse X</option>
+            <option value="y">Asse Y</option>
+          </select>
+          <label for="cylinder-diameter">Diametro</label>
+          <div class="field-with-unit">
+            <input id="cylinder-diameter" type="text" inputmode="decimal" min="0.1" step="0.1" value="12" />
+            <span>mm</span>
+          </div>
+          <label for="cylinder-height">Altezza / profondita</label>
+          <div class="field-with-unit">
+            <input id="cylinder-height" type="text" inputmode="decimal" min="0.1" step="0.1" value="20" />
+            <span>mm</span>
+          </div>
+          <div class="offset-grid">
+            <label for="cylinder-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="cylinder-offset-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="cylinder-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="cylinder-offset-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="cylinder-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="cylinder-offset-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+          </div>
+          <button id="apply-cylinder" type="button" class="action-button" disabled>Applica cilindro</button>
+          <button id="reset-cylinder" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="cut-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Figura da sottrarre</span>
+            <strong id="cut-info">Scegli forma e clicca dove vuoi togliere materiale.</strong>
+            <small>Anteprima arancione: volume che verra rimosso dallo STL.</small>
+          </div>
+          <label for="cut-shape">Forma</label>
+          <select id="cut-shape">
+            <option value="box">Box / parallelepipedo</option>
+            <option value="cylinder">Cilindro</option>
+          </select>
+          <div id="cut-box-fields" class="offset-grid">
+            <label for="cut-width" class="axis-x">Larghezza X</label>
+            <div class="field-with-unit">
+              <input id="cut-width" type="text" inputmode="decimal" min="0.1" step="0.1" value="20" />
+              <span>mm</span>
+            </div>
+            <label for="cut-depth" class="axis-y">Profondita Y</label>
+            <div class="field-with-unit">
+              <input id="cut-depth" type="text" inputmode="decimal" min="0.1" step="0.1" value="20" />
+              <span>mm</span>
+            </div>
+            <label for="cut-height" class="axis-z">Altezza Z</label>
+            <div class="field-with-unit">
+              <input id="cut-height" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
+              <span>mm</span>
+            </div>
+          </div>
+          <div id="cut-cylinder-fields" class="offset-grid" hidden>
+            <label for="cut-axis">Asse cilindro</label>
+            <select id="cut-axis">
+              <option value="face">Entra nella faccia cliccata</option>
+              <option value="z">Asse Z</option>
+              <option value="x">Asse X</option>
+              <option value="y">Asse Y</option>
+            </select>
+            <label for="cut-diameter">Diametro</label>
+            <div class="field-with-unit">
+              <input id="cut-diameter" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
+              <span>mm</span>
+            </div>
+            <label for="cut-cylinder-height">Profondita taglio</label>
+            <div class="field-with-unit">
+              <input id="cut-cylinder-height" type="text" inputmode="decimal" min="0.1" step="0.1" value="20" />
+              <span>mm</span>
+            </div>
+          </div>
+          <div class="offset-grid">
+            <label for="cut-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="cut-offset-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="cut-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="cut-offset-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="cut-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="cut-offset-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+          </div>
+          <small>Per scavare dentro una faccia, clicca la faccia e usa gli offset per centrare il taglio.</small>
+          <button id="apply-cut" type="button" class="action-button danger" disabled>Sottrai dallo STL</button>
+          <button id="reset-cut" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="sketch-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Sagoma</span>
+            <strong id="sketch-info">Clicca i punti della sagoma. Torna vicino al primo punto per chiuderla.</strong>
+            <small>I segmenti si agganciano automaticamente agli assi quando ci vai vicino.</small>
+          </div>
+          <label for="sketch-operation">Operazione</label>
+          <select id="sketch-operation">
+            <option value="add">Somma al solido</option>
+            <option value="subtract">Sottrai dal solido</option>
+          </select>
+          <label for="sketch-depth">Distanza estrusione</label>
+          <div class="field-with-unit">
+            <input id="sketch-depth" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
+            <span>mm</span>
+          </div>
+          <small>Quando la faccia e' chiusa puoi estruderla come con Spingi/Tira.</small>
+          <button id="apply-sketch" type="button" class="action-button" disabled>Estrudi sagoma</button>
+          <button id="reset-sketch" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <div id="measure-panel" class="measure-panel" hidden>
+          <div class="measure-total">
+            <span>Distanza tra i punti</span>
+            <strong id="measure-total">-- mm</strong>
+          </div>
+          <div class="axis-measure x">
+            <span><i></i> Asse X</span>
+            <strong id="measure-x">-- mm</strong>
+          </div>
+          <div class="axis-measure y">
+            <span><i></i> Asse Y</span>
+            <strong id="measure-y">-- mm</strong>
+          </div>
+          <div class="axis-measure z">
+            <span><i></i> Asse Z</span>
+            <strong id="measure-z">-- mm</strong>
+          </div>
+          <p id="measure-axis-summary">Clicca il primo punto.</p>
+          <button id="clear-measure" type="button" class="secondary-button">Nuova misura</button>
+        </div>
+
+        <div id="selection-info" class="selection-info">
+          <span class="eyebrow">SELEZIONE</span>
+          <strong id="selection-label">Nessuna superficie</strong>
+          <span id="selection-detail">Scegli uno strumento e clicca sul modello.</span>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="statusbar">
+      <div class="history-actions">
+        <button id="undo" disabled title="Annulla (Ctrl+Z)">Annulla</button>
+        <button id="redo" disabled title="Ripristina (Ctrl+Y)">Ripristina</button>
+      </div>
+      <span id="status">Pronto</span>
+      <div class="measurement">
+        <label for="measure-value">Misure</label>
+        <input id="measure-value" value="-- mm" readonly />
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
