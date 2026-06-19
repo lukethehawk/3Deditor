@@ -107,6 +107,9 @@ let cutPreview = null;
 let sketchPoints = [];
 let sketchPreview = null;
 let sketchClosed = false;
+let sketchPreviewPoint = null;
+let sketchPreviewAxis = null;
+let sketchLengthInput = '';
 let snapPoints = [];
 const undoStack = [];
 const redoStack = [];
@@ -201,6 +204,7 @@ const ui = {
   measureAxisSummary: document.querySelector('#measure-axis-summary'),
   selectionLabel: document.querySelector('#selection-label'),
   selectionDetail: document.querySelector('#selection-detail'),
+  measureLabel: document.querySelector('label[for="measure-value"]'),
   measureValue: document.querySelector('#measure-value'),
   undo: document.querySelector('#undo'),
   redo: document.querySelector('#redo'),
@@ -214,6 +218,17 @@ function formatMillimeters(value, signed = false) {
   const rounded = Math.abs(value) < 0.0005 ? 0 : value;
   const prefix = signed && rounded > 0 ? '+' : '';
   return `${prefix}${rounded.toFixed(2)} mm`;
+}
+
+function parseLengthInput(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*mm$/, '')
+    .replace(',', '.');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return Number.NaN;
+  return Math.round(parsed * 100) / 100;
 }
 
 function setupDecimalSteppers() {
@@ -274,6 +289,19 @@ function clearSelection() {
   ui.selectionLabel.textContent = 'Nessuna superficie';
   ui.selectionDetail.textContent = 'Clicca una superficie del modello.';
   ui.measureValue.value = '-- mm';
+}
+
+function updateMeasureBoxMode() {
+  const isSketchLengthMode = activeTool === 'line';
+  const canEditSketchLength = isSketchLengthMode && sketchPoints.length > 0 && !sketchClosed;
+  ui.measureLabel.textContent = isSketchLengthMode ? 'Lunghezza' : 'Misure';
+  ui.measureValue.readOnly = !canEditSketchLength;
+  ui.measureValue.placeholder = isSketchLengthMode ? 'digita mm' : '';
+  ui.measureValue.classList.toggle('length-entry', isSketchLengthMode);
+  ui.measureValue.classList.toggle('length-entry-active', canEditSketchLength);
+  if (isSketchLengthMode && !sketchPoints.length) {
+    ui.measureValue.value = '-- mm';
+  }
 }
 
 function disposeObject(object) {
@@ -363,46 +391,4 @@ function clearHoleMove() {
   ui.moveHoleAxis.textContent = 'Clicca la parete interna del foro.';
   ui.moveHoleHelp.textContent = 'Dopo aver scelto il foro, clicca il nuovo centro sulla piastra.';
   ui.moveHoleInputs.forEach((input) => {
-    input.value = '0';
-    input.disabled = true;
-  });
-  ui.applyMoveHole.disabled = true;
-}
-
-function clearBoxPlacement() {
-  boxPlacement = null;
-  if (boxPreview) {
-    scene.remove(boxPreview);
-    disposeObject(boxPreview);
-    boxPreview = null;
-  }
-  ui.boxInfo.textContent = 'Clicca dove vuoi appoggiare il parallelepipedo.';
-  ui.boxOffsetInputs.forEach((input) => {
-    input.value = '0';
-  });
-  ui.applyBox.disabled = true;
-}
-
-function clearCylinderPlacement() {
-  cylinderPlacement = null;
-  if (cylinderPreview) {
-    scene.remove(cylinderPreview);
-    disposeObject(cylinderPreview);
-    cylinderPreview = null;
-  }
-  ui.cylinderInfo.textContent = 'Clicca dove vuoi appoggiare il cilindro.';
-  ui.cylinderOffsetInputs.forEach((input) => {
-    input.value = '0';
-  });
-  ui.applyCylinder.disabled = true;
-}
-
-function clearCutPlacement() {
-  cutPlacement = null;
-  if (cutPreview) {
-    scene.remove(cutPreview);
-    disposeObject(cutPreview);
-    cutPreview = null;
-  }
-  ui.cutInfo.textContent = 'Scegli forma e clicca dove vuoi togliere materiale.';
-  ui.cutOffsetInputs.forEac
+   
