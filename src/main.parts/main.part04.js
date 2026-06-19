@@ -1,4 +1,153 @@
-CreatePreview);
+gth = parseLengthInput(sketchLengthInput);
+  if (!Number.isFinite(length)) {
+    setStatus('Digita una lunghezza valida in millimetri, per esempio 115,26.');
+    return;
+  }
+  if (!sketchPreviewPoint) {
+    setStatus('Muovi il mouse nella direzione del segmento, poi scrivi la lunghezza.');
+    return;
+  }
+  const constrained = applySketchLengthConstraint(sketchPreviewPoint);
+  constrained.z = sketchPoints[0].z;
+  sketchPreviewPoint = constrained;
+  drawSketchPreview(constrained, sketchPreviewAxis);
+  setStatus(`Lunghezza segmento impostata a ${formatMillimeters(length)}. Premi Invio per fissare il punto.`);
+}
+
+function addSketchPoint(point, axis = null) {
+  if (sketchPoints.length >= 3 && point.distanceTo(sketchPoints[0]) < 2.5) {
+    sketchClosed = true;
+    sketchLengthInput = '';
+    sketchPreviewPoint = null;
+    sketchPreviewAxis = null;
+    ui.measureValue.value = `${sketchPoints.length} lati`;
+    updateMeasureBoxMode();
+    ui.sketchInfo.textContent = `Faccia chiusa con ${sketchPoints.length} punti. Ora puoi estruderla.`;
+    ui.applySketch.disabled = false;
+    drawSketchPreview();
+    setStatus('Faccia chiusa. Inserisci la distanza e premi Estrudi sagoma.');
+    return;
+  }
+
+  sketchPoints.push(point);
+  sketchClosed = false;
+  sketchPreviewPoint = null;
+  sketchPreviewAxis = null;
+  sketchLengthInput = '';
+  ui.applySketch.disabled = true;
+  ui.measureValue.value = '-- mm';
+  updateMeasureBoxMode();
+  ui.sketchInfo.textContent = `${sketchPoints.length} punti. ${axis !== null ? `Segmento bloccato su asse ${['X', 'Y', 'Z'][axis]}. ` : ''}Torna vicino al primo punto per chiudere.`;
+  drawSketchPreview();
+  setStatus(sketchPoints.length === 1
+    ? 'Primo punto fissato. Muovi il mouse, digita la lunghezza se vuoi, poi Invio o clic.'
+    : 'Punto aggiunto alla sagoma.');
+}
+
+function sketchAt(clientX, clientY) {
+  const axisStart = sketchPoints.length ? sketchPoints[sketchPoints.length - 1] : null;
+  const pick = pickWorkPoint(clientX, clientY, { axisStart });
+  if (!pick) {
+    setStatus('Clicca sul piano di lavoro o su un punto agganciabile.');
+    return;
+  }
+
+  const point = sketchPoints.length ? applySketchLengthConstraint(pick.point.clone()) : pick.point.clone();
+  if (sketchPoints.length) point.z = sketchPoints[0].z;
+  addSketchPoint(point, pick.axis);
+}
+
+function previewSketch(clientX, clientY) {
+  if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return;
+  const pick = pickWorkPoint(clientX, clientY, {
+    axisStart: sketchPoints[sketchPoints.length - 1],
+  });
+  if (!pick) return;
+  const point = applySketchLengthConstraint(pick.point.clone());
+  point.z = sketchPoints[0].z;
+  sketchPreviewPoint = point;
+  sketchPreviewAxis = pick.axis;
+  updateSketchLengthReadout(point);
+  drawSketchPreview(point, pick.axis);
+}
+
+function commitSketchPreviewPoint() {
+  if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return false;
+  const length = parseLengthInput(sketchLengthInput || ui.measureValue.value);
+  if (sketchLengthInput && !Number.isFinite(length)) {
+    setStatus('La lunghezza non e valida. Usa un numero come 115,26.');
+    return true;
+  }
+  if (!sketchPreviewPoint) {
+    setStatus('Muovi il mouse nella direzione del segmento prima di confermare la lunghezza.');
+    return true;
+  }
+  addSketchPoint(sketchPreviewPoint.clone(), sketchPreviewAxis);
+  return true;
+}
+
+function handleSketchLengthShortcut(event) {
+  if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return false;
+  if (event.ctrlKey || event.altKey || event.metaKey) return false;
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    return commitSketchPreviewPoint();
+  }
+
+  if (event.key === 'Escape') {
+    sketchLengthInput = '';
+    ui.measureValue.value = sketchPreviewPoint ? formatMillimeters(sketchPreviewPoint.distanceTo(sketchPoints[sketchPoints.length - 1])) : '-- mm';
+    drawSketchPreview(sketchPreviewPoint, sketchPreviewAxis);
+    setStatus('Lunghezza manuale annullata.');
+    return true;
+  }
+
+  if (event.key === 'Backspace') {
+    event.preventDefault();
+    setSketchLengthInput(sketchLengthInput.slice(0, -1));
+    return true;
+  }
+
+  if (/^[0-9,.]$/.test(event.key)) {
+    event.preventDefault();
+    setSketchLengthInput(`${sketchLengthInput}${event.key}`);
+    return true;
+  }
+
+  return false;
+}
+
+function applySketch() {
+  if (!sketchClosed || sketchPoints.length < 3) {
+    setStatus('Chiudi prima la sagoma tornando vicino al primo punto.');
+    return;
+  }
+  const height = parseDecimal(ui.sketchDepth.value, 0);
+  if (!(height > 0)) {
+    setStatus('Inserisci una distanza di estrusione maggiore di zero.');
+    return;
+  }
+  try {
+    const geometry = createExtrudedPolygonGeometry(sketchPoints, height);
+    applyPrimitiveGeometry(
+      geometry,
+      ui.sketchOperation.value,
+      ui.sketchOperation.value === 'subtract' ? 'Sagoma estrusa e sottratta dal solido.' : 'Sagoma estrusa e unita al solido.',
+    );
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : 'Non riesco a estrudere questa sagoma.');
+  }
+}
+
+function createHoleCylinder(hole, center, radius, depth, material) {
+  return createPreviewCylinder(center, radius, depth, axisVector(hole.axis), material, hole.segments);
+}
+
+function drawHoleCreatePreview() {
+  if (!holeCreate?.center || activeTool !== 'hole') return;
+  if (holeCreatePreview) {
+    scene.remove(holeCreatePreview);
     disposeObject(holeCreatePreview);
     holeCreatePreview = null;
   }
@@ -249,168 +398,4 @@ function applyHole() {
     return;
   }
 
-  setStatus('Calcolo del foro in corso...');
-  snapshot();
-  try {
-    const sourceGeometry = model.geometry.clone();
-    sourceGeometry.clearGroups();
-    const source = new Brush(sourceGeometry, modelMaterial);
-    source.updateMatrixWorld(true);
-
-    const radius = diameter / 2;
-    const normal = holeCreate.normal.clone().normalize();
-    const margin = Math.max(0.02, radius * 0.01);
-    const cutter = createBooleanCylinderFromDirection(
-      holeCreate.center.clone().addScaledVector(normal, -(depth / 2) + margin / 2),
-      radius,
-      depth + margin,
-      normal,
-      64,
-    );
-
-    const result = evaluator.evaluate(source, cutter, SUBTRACTION);
-    const geometry = result.geometry.clone();
-    geometry.clearGroups();
-    geometry.computeVertexNormals();
-    setModelGeometry(geometry, false);
-    sourceGeometry.dispose();
-    updateHistoryButtons();
-    setStatus(`Foro creato: diametro ${diameter.toFixed(2)} mm, profondita ${depth.toFixed(2)} mm.`);
-  } catch (error) {
-    console.error(`Errore foratura: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
-    if (previous) setModelGeometry(previous, false);
-    updateHistoryButtons();
-    const detail = error instanceof Error ? ` (${error.message})` : '';
-    setStatus(`Non riesco a forare questa mesh: potrebbe non essere un solido chiuso.${detail}`);
-  }
-}
-
-async function openStl(file) {
-  try {
-    setStatus('Apertura STL...');
-    const data = await file.arrayBuffer();
-    const geometry = new STLLoader().parse(data);
-    geometry.computeBoundingBox();
-    const box = geometry.boundingBox;
-    const center = box.getCenter(new THREE.Vector3());
-    geometry.translate(-center.x, -center.y, -box.min.z);
-    for (const item of undoStack) item.dispose();
-    for (const item of redoStack) item.dispose();
-    undoStack.length = 0;
-    redoStack.length = 0;
-    setModelGeometry(geometry, false);
-    currentFileName = file.name;
-    ui.fileName.textContent = file.name;
-    updateHistoryButtons();
-    fitView();
-    setStatus(`${file.name} aperto. Unita interpretata: millimetri.`);
-  } catch (error) {
-    console.error(error);
-    setStatus('Il file STL non e leggibile.');
-  }
-}
-
-function exportStl() {
-  if (!model) return;
-  const exporter = new STLExporter();
-  const data = exporter.parse(model, { binary: true });
-  const blob = new Blob([data], { type: 'model/stl' });
-  const link = document.createElement('a');
-  const base = currentFileName.replace(/\.stl$/i, '');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${base}-modificato.stl`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  setStatus(`Esportato ${link.download}.`);
-}
-
-function resize() {
-  const width = viewport.clientWidth;
-  const height = viewport.clientHeight;
-  renderer.setSize(width, height, false);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-}
-
-document.querySelector('#open-file').addEventListener('click', () => ui.fileInput.click());
-ui.fileInput.addEventListener('change', (event) => {
-  const [file] = event.target.files;
-  if (file) openStl(file);
-  event.target.value = '';
-});
-document.querySelector('#export-file').addEventListener('click', exportStl);
-document.querySelectorAll('.tool').forEach((button) => {
-  button.addEventListener('click', () => setTool(button.dataset.tool));
-});
-document.querySelectorAll('[data-view]').forEach((button) => {
-  button.addEventListener('click', () => setView(button.dataset.view));
-});
-document.querySelector('#close-panel').addEventListener('click', () => {
-  ui.inspector.classList.remove('open');
-  setTool('select');
-});
-document.querySelector('#clear-measure').addEventListener('click', () => {
-  clearMeasurement();
-  setStatus('Nuova misura: clicca il primo punto.');
-});
-ui.applyMoveHole.addEventListener('click', (event) => {
-  event.preventDefault();
-  applyMoveHole();
-});
-document.querySelector('#reset-move-hole').addEventListener('click', () => {
-  clearHoleMove();
-  setStatus('Clicca la parete interna del foro da spostare.');
-});
-ui.moveHoleInputs.forEach((input) => {
-  input.addEventListener('input', updateHoleTargetFromInputs);
-});
-ui.holeOffsetInputs.forEach((input) => {
-  input.addEventListener('input', updateHoleCreateFromInputs);
-});
-[
-  ui.boxWidth,
-  ui.boxDepth,
-  ui.boxHeight,
-  ui.boxOperation,
-  ...ui.boxOffsetInputs,
-].forEach((input) => {
-  input.addEventListener('input', drawBoxPreview);
-  input.addEventListener('change', drawBoxPreview);
-});
-ui.applyBox.addEventListener('click', (event) => {
-  event.preventDefault();
-  applyBox();
-});
-document.querySelector('#reset-box').addEventListener('click', () => {
-  clearBoxPlacement();
-  setStatus('Clicca il punto di appoggio del parallelepipedo.');
-});
-[
-  ui.cylinderDiameter,
-  ui.cylinderHeight,
-  ui.cylinderAxis,
-  ui.cylinderOperation,
-  ...ui.cylinderOffsetInputs,
-].forEach((input) => {
-  input.addEventListener('input', drawCylinderPreview);
-  input.addEventListener('change', drawCylinderPreview);
-});
-ui.applyCylinder.addEventListener('click', (event) => {
-  event.preventDefault();
-  applyCylinder();
-});
-document.querySelector('#reset-cylinder').addEventListener('click', () => {
-  clearCylinderPlacement();
-  setStatus('Clicca il centro di appoggio del cilindro.');
-});
-[
-  ui.cutShape,
-  ui.cutWidth,
-  ui.cutDepth,
-  ui.cutHeight,
-  ui.cutDiameter,
-  ui.cutCylinderHeight,
-  ui.cutAxis,
-  ...ui.cutOffsetInputs,
-].forEach((input) =
+  setStatus('Calcolo del
