@@ -7,12 +7,23 @@ Editor STL locale con un flusso di lavoro ispirato a SketchUp.
 Fare doppio clic su `Avvia Forma 3D.bat`. L'app si apre in una finestra desktop
 e lavora localmente: i file STL non vengono caricati su servizi esterni.
 
+Da una cartella clonata da GitHub:
+
+```bash
+npm install
+npm start
+```
+
 ## Comandi principali
 
 - `Spazio`: selezione
 - `P`: Spingi/Tira
 - `H`: foro con anteprima, offset assi e diametro/profondita
 - `F`: sposta un foro esistente
+- `B`: crea parallelepipedo
+- `C`: crea cilindro
+- `T`: sottrai una figura di taglio da un solido/STL
+- `L`: traccia linee e crea sagome chiuse estrudibili
 - `M`: misura tra due punti
 - `O`: orbita
 - rotellina premuta: orbita
@@ -31,8 +42,16 @@ Per creare un foro, cliccare il centro sulla superficie. L'anteprima verde
 mostra il taglio; il pannello permette di modificare diametro, profondita e
 spostamenti sugli assi prima di confermare.
 
+Parallelepipedo, cilindro e sottrai usano un'anteprima agganciabile al modello:
+cliccare una superficie o un punto utile, correggere posizione e dimensioni dal
+pannello, quindi applicare. Le operazioni possono sommare o sottrarre geometrie
+per esportare un unico STL modificato.
+
+Lo strumento linea aiuta a disegnare sagome agganciandosi ai punti del modello e
+agli assi principali quando il puntatore si avvicina alla direzione X, Y o Z.
+
 ## Limiti del prototipo
 
 Spingi/Tira funziona sulle superfici piane collegate riconosciute nella mesh.
-Il foro richiede una mesh chiusa e priva di gravi errori. Gli STL vengono
-interpretati in millimetri.
+Fori e operazioni booleane richiedono una mesh chiusa e priva di gravi errori.
+Gli STL vengono interpretati in millimetri.
