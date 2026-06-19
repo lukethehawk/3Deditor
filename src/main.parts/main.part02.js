@@ -1,0 +1,410 @@
+h((input) => {
+    input.value = '0';
+  });
+  ui.applyCut.disabled = true;
+}
+
+function clearSketch() {
+  sketchPoints = [];
+  sketchClosed = false;
+  if (sketchPreview) {
+    scene.remove(sketchPreview);
+    disposeObject(sketchPreview);
+    sketchPreview = null;
+  }
+  ui.sketchInfo.textContent = 'Clicca i punti della sagoma. Torna vicino al primo punto per chiuderla.';
+  ui.applySketch.disabled = true;
+}
+
+function updateEdges() {
+  if (edges) {
+    scene.remove(edges);
+    edges.geometry.dispose();
+  }
+  if (!model) return;
+  edges = new THREE.LineSegments(new THREE.EdgesGeometry(model.geometry, 22), edgeMaterial);
+  edges.renderOrder = 2;
+  scene.add(edges);
+}
+
+function setModelGeometry(geometry, recordHistory = true) {
+  if (recordHistory && model) snapshot();
+  clearTransientOverlays();
+  clearSelection();
+  clearMeasurement();
+  clearHoleCreate();
+  clearHoleMove();
+  clearBoxPlacement();
+  clearCylinderPlacement();
+  clearCutPlacement();
+  clearSketch();
+
+  if (model) {
+    scene.remove(model);
+    model.geometry.dispose();
+  }
+
+  geometry.deleteAttribute('uv');
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  model = new THREE.Mesh(geometry, modelMaterial);
+  scene.add(model);
+  snapPoints = collectGeometryVertices(model.geometry);
+  updateEdges();
+}
+
+function snapshot() {
+  undoStack.push(model.geometry.clone());
+  if (undoStack.length > 30) undoStack.shift().dispose();
+  for (const geometry of redoStack) geometry.dispose();
+  redoStack.length = 0;
+  updateHistoryButtons();
+}
+
+function restoreFrom(source, destination) {
+  if (!source.length || !model) return;
+  destination.push(model.geometry.clone());
+  const geometry = source.pop();
+  setModelGeometry(geometry, false);
+  updateHistoryButtons();
+  setStatus('Modifica ripristinata.');
+}
+
+function updateHistoryButtons() {
+  ui.undo.disabled = undoStack.length === 0;
+  ui.redo.disabled = redoStack.length === 0;
+}
+
+function fitView(direction = new THREE.Vector3(1.15, -1.45, 1)) {
+  if (!model) return;
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const radius = Math.max(size.length() * 0.75, 20);
+  camera.position.copy(center).add(direction.clone().normalize().multiplyScalar(radius));
+  camera.near = Math.max(radius / 1000, 0.01);
+  camera.far = radius * 100;
+  camera.updateProjectionMatrix();
+  controls.target.copy(center);
+  controls.update();
+}
+
+function setView(view) {
+  if (!model) return;
+  if (view === 'top') fitView(new THREE.Vector3(0, 0, 1));
+  if (view === 'front') fitView(new THREE.Vector3(0, -1, 0));
+  if (view === 'iso') fitView();
+}
+
+function updateInspector() {
+  const config = {
+    select: {
+      title: 'Seleziona',
+      description: 'Clicca una superficie del modello per selezionarla.',
+      hint: 'Clicca una superficie. Usa la rotellina premuta per orbitare.',
+    },
+    pushpull: {
+      title: 'Spingi/Tira',
+      description: 'Clicca una superficie piana, inserisci la distanza e applica.',
+      hint: 'Spingi/Tira: clicca la faccia da allargare o restringere.',
+    },
+    hole: {
+      title: 'Foro',
+      description: 'Clicca una superficie per impostare il centro, poi regola diametro, profondita e offset.',
+      hint: 'Foro: clicca il centro sulla superficie. Verde = anteprima del taglio.',
+    },
+    movehole: {
+      title: 'Sposta foro',
+      description: 'Clicca la parete interna del foro, poi scegli il nuovo centro sulla piastra.',
+      hint: 'Sposta foro: prima clicca dentro il foro, poi clicca la nuova posizione.',
+    },
+    box: {
+      title: 'Parallelepipedo',
+      description: 'Clicca il punto di appoggio, regola le misure e scegli se sommare o sottrarre dal solido.',
+      hint: 'Parallelepipedo: clicca sul piano o su una faccia. Anteprima arancione = nuovo solido.',
+    },
+    cylinder: {
+      title: 'Cilindro',
+      description: 'Clicca il centro di appoggio, scegli asse, diametro, altezza e operazione booleana.',
+      hint: 'Cilindro: clicca dove appoggiare il centro. Puoi sommare o sottrarre.',
+    },
+    cut: {
+      title: 'Sottrai solido',
+      description: 'Crea un box o un cilindro di taglio e sottrailo dal file STL caricato.',
+      hint: 'Sottrai: clicca sull\'STL o sul piano, regola la figura arancione e applica.',
+    },
+    line: {
+      title: 'Linea',
+      description: 'Traccia una sagoma chiusa sul piano di lavoro, poi estrudila con una distanza.',
+      hint: 'Linea: clicca i vertici. Vicino agli assi il segmento si blocca automaticamente.',
+    },
+    measure: {
+      title: 'Misura',
+      description: 'Clicca due punti sul modello. La distanza viene scomposta sugli assi X, Y e Z.',
+      hint: 'Misura: clicca il primo punto, poi il secondo. Rosso X, verde Y, blu Z.',
+    },
+    orbit: {
+      title: 'Orbita',
+      description: 'Trascina con il tasto sinistro per ruotare la vista.',
+      hint: 'Orbita: trascina per guardare il modello da ogni lato.',
+    },
+    pan: {
+      title: 'Panoramica',
+      description: 'Trascina con il tasto sinistro per spostare la vista.',
+      hint: 'Panoramica: trascina per spostare il foglio di lavoro.',
+    },
+  };
+  const current = config[activeTool] ?? config.select;
+  ui.panelTitle.textContent = current.title;
+  ui.panelDescription.textContent = current.description;
+  ui.hint.textContent = current.hint;
+  ui.pushPullForm.hidden = activeTool !== 'pushpull';
+  ui.holeForm.hidden = activeTool !== 'hole';
+  ui.moveHoleForm.hidden = activeTool !== 'movehole';
+  ui.boxForm.hidden = activeTool !== 'box';
+  ui.cylinderForm.hidden = activeTool !== 'cylinder';
+  ui.cutForm.hidden = activeTool !== 'cut';
+  ui.sketchForm.hidden = activeTool !== 'line';
+  ui.measurePanel.hidden = activeTool !== 'measure';
+  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'line'].includes(activeTool);
+  ui.inspector.classList.toggle(
+    'open',
+    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'line', 'measure'].includes(activeTool),
+  );
+}
+
+function setTool(tool) {
+  if (tool === 'zoomfit') {
+    fitView();
+    return;
+  }
+  if (activeTool === 'hole' && tool !== 'hole') clearHoleCreate();
+  if (activeTool === 'movehole' && tool !== 'movehole') clearHoleMove();
+  if (activeTool === 'box' && tool !== 'box') clearBoxPlacement();
+  if (activeTool === 'cylinder' && tool !== 'cylinder') clearCylinderPlacement();
+  if (activeTool === 'cut' && tool !== 'cut') clearCutPlacement();
+  if (activeTool === 'line' && tool !== 'line') clearSketch();
+  activeTool = tool;
+  if (tool === 'measure') clearSelection();
+  if (tool === 'hole') {
+    clearSelection();
+    clearHoleCreate();
+  }
+  if (tool === 'movehole') {
+    clearSelection();
+    clearHoleMove();
+  }
+  if (tool === 'box') {
+    clearSelection();
+    clearBoxPlacement();
+  }
+  if (tool === 'cylinder') {
+    clearSelection();
+    clearCylinderPlacement();
+  }
+  if (tool === 'cut') {
+    clearSelection();
+    clearCutPlacement();
+    updateCutFields();
+  }
+  if (tool === 'line') {
+    clearSelection();
+    clearSketch();
+  }
+  document.querySelectorAll('.tool').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tool === tool);
+  });
+  controls.mouseButtons.LEFT =
+    tool === 'orbit'
+      ? THREE.MOUSE.ROTATE
+      : tool === 'pan'
+        ? THREE.MOUSE.PAN
+        : null;
+  canvas.style.cursor =
+    tool === 'orbit'
+      ? 'grab'
+      : tool === 'pan'
+        ? 'move'
+        : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'line'].includes(tool)
+          ? 'crosshair'
+          : 'default';
+  updateInspector();
+  const statusByTool = {
+    select: 'Selezione attiva. Clicca una superficie del modello.',
+    pushpull: 'Spingi/Tira: clicca una superficie piana.',
+    hole: 'Foro: clicca il centro sulla superficie.',
+    movehole: 'Sposta foro: clicca la parete interna del foro.',
+    box: 'Parallelepipedo: clicca il punto di appoggio, poi regola misure e somma/sottrai.',
+    cylinder: 'Cilindro: clicca il centro di appoggio, poi regola diametro, altezza e asse.',
+    cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
+    line: 'Linea: clicca i punti della sagoma. Torna al primo punto per chiuderla.',
+    measure: 'Misura: clicca il primo punto.',
+    orbit: 'Orbita: trascina per ruotare la vista.',
+    pan: 'Panoramica: trascina per spostare la vista.',
+  };
+  if (statusByTool[tool]) setStatus(statusByTool[tool]);
+}
+
+function raycastModel(clientX, clientY) {
+  if (!model) return;
+  setRayFromPointer(clientX, clientY);
+  return raycaster.intersectObject(model, false)[0];
+}
+
+function setRayFromPointer(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+}
+
+function pickWorkPoint(clientX, clientY, options = {}) {
+  const { axisStart = null, modelOnly = false } = options;
+  const hit = raycastModel(clientX, clientY);
+  let point = null;
+  let normal = new THREE.Vector3(0, 0, 1);
+  let source = 'piano';
+
+  if (hit) {
+    point = hit.point.clone();
+    normal = hit.face.normal.clone().normalize();
+    source = 'modello';
+  } else if (!modelOnly) {
+    setRayFromPointer(clientX, clientY);
+    point = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
+  }
+  if (!point) return null;
+
+  let axis = null;
+  if (axisStart) {
+    const locked = snapPointToAxis(axisStart, point);
+    point = locked.point;
+    axis = locked.axis;
+  }
+
+  const snapped = snapPoint(point, {
+    gridSize: 1,
+    snapPoints,
+    snapDistance: 2.5,
+  });
+
+  return {
+    hit,
+    point: snapped.point,
+    normal,
+    source,
+    snapKind: snapped.kind,
+    axis,
+  };
+}
+
+function selectAt(clientX, clientY) {
+  const hit = raycastModel(clientX, clientY);
+  if (!hit) {
+    clearSelection();
+    return;
+  }
+
+  const region = findCoplanarRegion(model.geometry, hit.faceIndex);
+  clearSelection();
+  selected = {
+    point: hit.point.clone(),
+    normal: region.normal.clone(),
+    region,
+  };
+
+  highlight = new THREE.Mesh(
+    createRegionGeometry(model.geometry, region.triangles),
+    highlightMaterial,
+  );
+  highlight.renderOrder = 3;
+  addTransientOverlay(highlight, 'selection');
+  ui.selectionLabel.textContent = `Superficie selezionata (${region.triangles.length} triangoli)`;
+  ui.selectionDetail.textContent =
+    activeTool === 'hole'
+      ? 'Il punto blu indica il centro del foro.'
+      : 'La zona blu verra spostata lungo la sua normale.';
+  ui.measureValue.value = `${region.triangles.length} facce`;
+  ui.inspector.classList.add('open');
+  setStatus(activeTool === 'hole' ? 'Punto del foro selezionato.' : 'Superficie selezionata.');
+}
+
+function createMeasureLine(start, end, color, dashed = false) {
+  const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+  const material = dashed
+    ? new THREE.LineDashedMaterial({
+        color,
+        dashSize: 2.4,
+        gapSize: 1.4,
+        depthTest: false,
+      })
+    : new THREE.LineBasicMaterial({ color, depthTest: false });
+  const line = new THREE.Line(geometry, material);
+  if (dashed) line.computeLineDistances();
+  line.renderOrder = 10;
+  return line;
+}
+
+function createPointMarker(point, color, radius) {
+  const marker = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 18, 12),
+    new THREE.MeshBasicMaterial({ color, depthTest: false }),
+  );
+  marker.position.copy(point);
+  marker.renderOrder = 11;
+  return marker;
+}
+
+function drawMeasurement(end, preview = false) {
+  if (!measurementStart) return;
+  if (measurementGroup) {
+    scene.remove(measurementGroup);
+    disposeObject(measurementGroup);
+  }
+
+  const start = measurementStart;
+  const xPoint = new THREE.Vector3(end.x, start.y, start.z);
+  const xyPoint = new THREE.Vector3(end.x, end.y, start.z);
+  const modelSize = model.geometry.boundingSphere?.radius ?? 50;
+  const markerRadius = Math.max(modelSize * 0.012, 0.35);
+  measurementGroup = new THREE.Group();
+  measurementGroup.add(createMeasureLine(start, end, measureColors.total, true));
+  measurementGroup.add(createMeasureLine(start, xPoint, measureColors.x));
+  measurementGroup.add(createMeasureLine(xPoint, xyPoint, measureColors.y));
+  measurementGroup.add(createMeasureLine(xyPoint, end, measureColors.z));
+  measurementGroup.add(createPointMarker(start, 0xffffff, markerRadius));
+  measurementGroup.add(createPointMarker(end, preview ? 0xffcf47 : measureColors.total, markerRadius));
+  addTransientOverlay(measurementGroup, 'measurement');
+
+  const result = calculateMeasurement(start, end);
+  updateMeasurementPanel(result, preview);
+}
+
+function updateMeasurementPanel(result, preview = false) {
+  measurementResult = result;
+  ui.measureTotal.textContent = formatMillimeters(result.total);
+  ui.measureX.textContent = formatMillimeters(result.dx, true);
+  ui.measureY.textContent = formatMillimeters(result.dy, true);
+  ui.measureZ.textContent = formatMillimeters(result.dz, true);
+  const axis = result.dominantAxis.toUpperCase();
+  ui.measureAxisSummary.textContent = result.isAxisAligned
+    ? `Misura allineata con l'asse ${axis}.`
+    : `Misura 3D. Componente principale sull'asse ${axis}.`;
+  ui.measureValue.value = formatMillimeters(result.total);
+  if (preview) ui.measureAxisSummary.textContent += ' Clicca per confermare.';
+}
+
+function measureAt(clientX, clientY) {
+  const hit = raycastModel(clientX, clientY);
+  if (!hit) {
+    setStatus('Clicca un punto sulla superficie del modello.');
+    return;
+  }
+
+  if (!measurementStart || measurementEnd) {
+    clearMeasurement();
+    measurementStart = hit.point.clone();
+    drawMeasurement(measurementStart, true);
+    ui.measureAxisSummary.textContent = 'Primo punto fissato. Clicca il secondo punto.';
+    setStatus('Primo punto fissato. Ora clicca il s
