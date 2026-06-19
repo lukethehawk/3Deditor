@@ -703,6 +703,17 @@ button {
   font-size: 11px;
 }
 
+.measurement input.length-entry {
+  width: 150px;
+}
+
+.measurement input.length-entry-active {
+  border-color: var(--blue);
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgb(22 121 184 / 16%);
+  color: #1f3038;
+}
+
 @media (max-width: 760px) {
   .brand #file-name,
   .button-icon,
