@@ -96,6 +96,23 @@ button {
   background: #eef2f3;
 }
 
+.top-button:disabled {
+  color: #9aa3a8;
+  background: #e7eaeb;
+  cursor: default;
+}
+
+.top-button.danger {
+  border-color: #cfb4a3;
+  color: #8b3d18;
+}
+
+.top-button.danger:hover:not(:disabled) {
+  color: white;
+  border-color: #bf561f;
+  background: var(--orange);
+}
+
 .top-button.primary,
 .action-button {
   color: white;

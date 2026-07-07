@@ -88,6 +88,7 @@ ui.fileInput.addEventListener('change', (event) => {
   if (file) openStl(file);
   event.target.value = '';
 });
+ui.removeModelButton.addEventListener('click', removeCurrentModel);
 document.querySelector('#export-file').addEventListener('click', exportStl);
 document.querySelectorAll('.tool').forEach((button) => {
   button.addEventListener('click', () => setTool(button.dataset.tool));
@@ -249,6 +250,7 @@ window.addEventListener('keydown', (event) => {
   if (event.target === ui.measureValue && activeTool === 'line') return;
   if (handleSketchLengthShortcut(event)) return;
   if (event.target.matches('input')) return;
+  if (handleDeleteKey(event)) return;
   if (event.ctrlKey && event.key.toLowerCase() === 'z') {
     event.preventDefault();
     restoreFrom(undoStack, redoStack);

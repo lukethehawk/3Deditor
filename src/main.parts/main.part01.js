@@ -6,6 +6,7 @@ import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { ADDITION, Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
 import {
   createRegionGeometry,
+  deleteTrianglesFromGeometry,
   findCoplanarRegion,
   pushPullGeometry,
 } from './geometry.js';
@@ -120,10 +121,13 @@ evaluator.useGroups = false;
 evaluator.attributes = ['position', 'normal'];
 
 const ui = {
+  exportButton: document.querySelector('#export-file'),
+  removeModelButton: document.querySelector('#remove-model'),
   fileInput: document.querySelector('#file-input'),
   fileName: document.querySelector('#file-name'),
   status: document.querySelector('#status'),
   hint: document.querySelector('#hint'),
+  emptyState: document.querySelector('#empty-state'),
   inspector: document.querySelector('#inspector'),
   panelTitle: document.querySelector('#panel-title'),
   panelDescription: document.querySelector('#panel-description'),
@@ -391,4 +395,3 @@ function clearHoleMove() {
   ui.moveHoleAxis.textContent = 'Clicca la parete interna del foro.';
   ui.moveHoleHelp.textContent = 'Dopo aver scelto il foro, clicca il nuovo centro sulla piastra.';
   ui.moveHoleInputs.forEach((input) => {
-   

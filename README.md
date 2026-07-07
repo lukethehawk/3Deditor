@@ -7,6 +7,10 @@ Editor STL locale con un flusso di lavoro ispirato a SketchUp.
 Fare doppio clic su `Avvia Forma 3D.bat`. L'app si apre in una finestra desktop
 e lavora localmente: i file STL non vengono caricati su servizi esterni.
 
+Prima di fare nuove modifiche al codice, leggere anche
+[`docs/DIARIO_SVILUPPO.md`](docs/DIARIO_SVILUPPO.md): contiene architettura,
+logiche geometriche, limiti noti e possibili evoluzioni.
+
 Da una cartella clonata da GitHub:
 
 ```bash
@@ -30,6 +34,7 @@ npm start
 - rotellina: zoom
 - tasto destro: panoramica
 - `Ctrl+Z` / `Ctrl+Y`: annulla / ripristina
+- `Canc`: cancella l'anteprima attiva o la superficie selezionata
 
 La misura mostra la distanza diretta e le componenti firmate sui tre assi:
 rosso X, verde Y e blu Z.

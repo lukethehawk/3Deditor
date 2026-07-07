@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { findCoplanarRegion, pushPullGeometry } from '../src/geometry.js';
+import { deleteTrianglesFromGeometry, findCoplanarRegion, pushPullGeometry } from '../src/geometry.js';
 
 function findTopTriangle(geometry) {
   const position = geometry.getAttribute('position');
@@ -32,4 +32,22 @@ test('pushPullGeometry moves a planar cap and stretches the solid', () => {
   result.computeBoundingBox();
   assert.ok(Math.abs(result.boundingBox.max.z - 7) < 1e-6);
   assert.ok(Math.abs(result.boundingBox.min.z + 3) < 1e-6);
+});
+
+test('deleteTrianglesFromGeometry removes a selected planar region', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const region = findCoplanarRegion(geometry, findTopTriangle(geometry));
+  const result = deleteTrianglesFromGeometry(geometry, region.triangles);
+  assert.ok(result);
+  assert.equal(result.getAttribute('position').count, geometry.getAttribute('position').count - 6);
+});
+
+test('deleteTrianglesFromGeometry returns null when no triangles remain', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0,
+    1, 0, 0,
+    0, 1, 0,
+  ], 3));
+  assert.equal(deleteTrianglesFromGeometry(geometry, [0]), null);
 });

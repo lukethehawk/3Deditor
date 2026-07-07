@@ -66,11 +66,19 @@ function updateEdges() {
   if (edges) {
     scene.remove(edges);
     edges.geometry.dispose();
+    edges = null;
   }
   if (!model) return;
   edges = new THREE.LineSegments(new THREE.EdgesGeometry(model.geometry, 22), edgeMaterial);
   edges.renderOrder = 2;
   scene.add(edges);
+}
+
+function updateModelActions() {
+  const hasModel = Boolean(model);
+  ui.exportButton.disabled = !hasModel;
+  ui.removeModelButton.disabled = !hasModel;
+  ui.emptyState.hidden = hasModel;
 }
 
 function setModelGeometry(geometry, recordHistory = true) {
@@ -98,6 +106,7 @@ function setModelGeometry(geometry, recordHistory = true) {
   scene.add(model);
   snapPoints = collectGeometryVertices(model.geometry);
   updateEdges();
+  updateModelActions();
 }
 
 function snapshot() {
@@ -109,8 +118,8 @@ function snapshot() {
 }
 
 function restoreFrom(source, destination) {
-  if (!source.length || !model) return;
-  destination.push(model.geometry.clone());
+  if (!source.length) return;
+  if (model) destination.push(model.geometry.clone());
   const geometry = source.pop();
   setModelGeometry(geometry, false);
   updateHistoryButtons();
@@ -120,6 +129,110 @@ function restoreFrom(source, destination) {
 function updateHistoryButtons() {
   ui.undo.disabled = undoStack.length === 0;
   ui.redo.disabled = redoStack.length === 0;
+}
+
+function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nuova figura.') {
+  clearTransientOverlays();
+  clearSelection();
+  clearMeasurement();
+  clearHoleCreate();
+  clearHoleMove();
+  clearBoxPlacement();
+  clearCylinderPlacement();
+  clearCutPlacement();
+  clearSketch();
+
+  if (model) {
+    scene.remove(model);
+    model.geometry.dispose();
+    model = null;
+  }
+
+  updateEdges();
+  snapPoints = [];
+  currentFileName = 'modello-senza-titolo.stl';
+  ui.fileName.textContent = 'Nessun modello';
+  updateModelActions();
+  updateHistoryButtons();
+  setTool('select');
+  setStatus(message);
+}
+
+function removeCurrentModel() {
+  if (!model) {
+    setStatus('Non c e nessun modello da rimuovere.');
+    return;
+  }
+  for (const geometry of undoStack) geometry.dispose();
+  for (const geometry of redoStack) geometry.dispose();
+  undoStack.length = 0;
+  redoStack.length = 0;
+  clearCurrentModel('Figura rimossa. Apri un STL o crea una nuova geometria.');
+}
+
+function deleteSelectedRegion() {
+  if (!selected || !model) {
+    setStatus('Seleziona una superficie da cancellare, oppure usa Rimuovi modello per togliere tutto.');
+    return false;
+  }
+
+  const triangleCount = selected.region.triangles.length;
+  const geometry = deleteTrianglesFromGeometry(model.geometry, selected.region.triangles);
+  snapshot();
+  if (!geometry) {
+    clearCurrentModel('Tutte le superfici sono state cancellate. Usa Annulla per ripristinare.');
+  } else {
+    setModelGeometry(geometry, false);
+    updateHistoryButtons();
+    setStatus(`Superficie cancellata: ${triangleCount} triangoli rimossi. Usa Ctrl+Z per annullare.`);
+  }
+  return true;
+}
+
+function clearActiveDeleteTarget() {
+  if (activeTool === 'measure' && (measurementStart || measurementEnd)) {
+    clearMeasurement();
+    setStatus('Misura cancellata.');
+    return true;
+  }
+  if (activeTool === 'hole' && holeCreate) {
+    clearHoleCreate();
+    setStatus('Anteprima foro cancellata.');
+    return true;
+  }
+  if (activeTool === 'movehole' && holeMove) {
+    clearHoleMove();
+    setStatus('Spostamento foro annullato.');
+    return true;
+  }
+  if (activeTool === 'box' && boxPlacement) {
+    clearBoxPlacement();
+    setStatus('Parallelepipedo in anteprima cancellato.');
+    return true;
+  }
+  if (activeTool === 'cylinder' && cylinderPlacement) {
+    clearCylinderPlacement();
+    setStatus('Cilindro in anteprima cancellato.');
+    return true;
+  }
+  if (activeTool === 'cut' && cutPlacement) {
+    clearCutPlacement();
+    setStatus('Figura di taglio cancellata.');
+    return true;
+  }
+  if (activeTool === 'line' && sketchPoints.length) {
+    clearSketch();
+    setStatus('Sagoma cancellata.');
+    return true;
+  }
+  return false;
+}
+
+function handleDeleteKey(event) {
+  if (event.key !== 'Delete') return false;
+  event.preventDefault();
+  if (clearActiveDeleteTarget()) return true;
+  return deleteSelectedRegion();
 }
 
 function fitView(direction = new THREE.Vector3(1.15, -1.45, 1)) {
@@ -424,4 +537,4 @@ function drawMeasurement(end, preview = false) {
   measurementGroup.add(createPointMarker(end, preview ? 0xffcf47 : measureColors.total, markerRadius));
   addTransientOverlay(measurementGroup, 'measurement');
 
-  const result = calculateMeasurement(start, end
+  const result = calculateMeasurement(start, end)

@@ -116,6 +116,34 @@ export function pushPullGeometry(geometry, region, distance) {
   return result;
 }
 
+export function deleteTrianglesFromGeometry(geometry, triangleIndexes) {
+  const position = geometry.getAttribute('position');
+  const index = geometry.getIndex();
+  const triangleCount = (index?.count ?? position.count) / 3;
+  const deleted = new Set(triangleIndexes);
+  const positions = [];
+  const point = new THREE.Vector3();
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    if (deleted.has(triangle)) continue;
+
+    for (let corner = 0; corner < 3; corner += 1) {
+      const vertex = index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+      point.fromBufferAttribute(position, vertex);
+      positions.push(point.x, point.y, point.z);
+    }
+  }
+
+  if (!positions.length) return null;
+
+  const result = new THREE.BufferGeometry();
+  result.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  result.computeVertexNormals();
+  result.computeBoundingBox();
+  result.computeBoundingSphere();
+  return result;
+}
+
 export function createRegionGeometry(geometry, triangleIndexes, offset = 0.03) {
   const positions = [];
   for (const triangle of triangleIndexes) {
