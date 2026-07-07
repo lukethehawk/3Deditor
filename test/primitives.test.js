@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import helvetikerRegularData from 'three/examples/fonts/helvetiker_regular.typeface.json' with { type: 'json' };
 import {
   createBoxGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createTextGeometryFromBase,
 } from '../src/primitives.js';
+
+const testFont = new FontLoader().parse(helvetikerRegularData);
 
 test('createBoxGeometryFromBase places the base on the picked point z', () => {
   const geometry = createBoxGeometryFromBase(
@@ -42,5 +47,20 @@ test('createExtrudedPolygonGeometry creates a solid from a closed 2D face', () =
   geometry.computeBoundingBox();
   assert.equal(geometry.boundingBox.min.z, 2);
   assert.equal(geometry.boundingBox.max.z, 7);
+});
+
+test('createTextGeometryFromBase creates extruded text from the picked base point', () => {
+  const geometry = createTextGeometryFromBase(
+    new THREE.Vector3(4, 5, 2),
+    'A',
+    testFont,
+    { size: 10, depth: 3, widthScale: 1.4 },
+  );
+  geometry.computeBoundingBox();
+  assert.equal(Math.round(geometry.boundingBox.min.x), 4);
+  assert.equal(Math.round(geometry.boundingBox.min.y), 5);
+  assert.equal(Math.round(geometry.boundingBox.min.z), 2);
+  assert.equal(Math.round(geometry.boundingBox.max.z), 5);
+  assert.ok(geometry.boundingBox.max.x - geometry.boundingBox.min.x > 10);
 });
 

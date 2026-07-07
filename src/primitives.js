@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 export function normalizeGeometry(geometry) {
   geometry.deleteAttribute('uv');
@@ -56,5 +57,57 @@ export function createExtrudedPolygonGeometry(points, height) {
     steps: 1,
   }));
   geometry.translate(0, 0, z);
+  return normalizeGeometry(geometry);
+}
+
+export function createTextGeometryFromBase(base, text, font, options = {}) {
+  const content = String(text ?? '').trim();
+  if (!content) {
+    throw new Error('Inserisci il testo da creare.');
+  }
+  if (!font) {
+    throw new Error('Font non disponibile.');
+  }
+
+  const size = Math.max(options.size ?? 12, 0.5);
+  const depth = Math.max(options.depth ?? 2, 0.1);
+  const widthScale = Math.max(options.widthScale ?? 1, 0.2);
+  const bevelSize = Math.max(options.bevelSize ?? 0, 0);
+  const italic = Boolean(options.italic);
+  const rotationZ = THREE.MathUtils.degToRad(options.rotationZ ?? 0);
+
+  const geometry = ensureNonIndexed(new TextGeometry(content, {
+    font,
+    size,
+    depth,
+    curveSegments: 12,
+    steps: 1,
+    bevelEnabled: bevelSize > 0,
+    bevelThickness: bevelSize,
+    bevelSize,
+    bevelSegments: bevelSize > 0 ? 2 : 0,
+  }));
+
+  geometry.computeBoundingBox();
+  const initialBox = geometry.boundingBox;
+  geometry.translate(-initialBox.min.x, -initialBox.min.y, -initialBox.min.z);
+  geometry.scale(widthScale, 1, 1);
+
+  if (italic) {
+    const shear = new THREE.Matrix4().set(
+      1, Math.tan(THREE.MathUtils.degToRad(12)), 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1,
+    );
+    geometry.applyMatrix4(shear);
+  }
+
+  geometry.computeBoundingBox();
+  const styledBox = geometry.boundingBox;
+  geometry.translate(-styledBox.min.x, -styledBox.min.y, -styledBox.min.z);
+  geometry.rotateZ(rotationZ);
+  geometry.translate(base.x, base.y, base.z);
+
   return normalizeGeometry(geometry);
 }

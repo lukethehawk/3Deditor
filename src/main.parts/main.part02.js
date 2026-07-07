@@ -46,6 +46,21 @@ function clearCutPlacement() {
   ui.applyCut.disabled = true;
 }
 
+function clearTextPlacement() {
+  textPreviewRequest += 1;
+  textPlacement = null;
+  if (textPreview) {
+    scene.remove(textPreview);
+    disposeObject(textPreview);
+    textPreview = null;
+  }
+  ui.textInfo.textContent = 'Clicca dove vuoi appoggiare il testo.';
+  ui.textOffsetInputs.forEach((input) => {
+    input.value = '0';
+  });
+  ui.applyText.disabled = true;
+}
+
 function clearSketch() {
   sketchPoints = [];
   sketchClosed = false;
@@ -140,6 +155,7 @@ function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nu
   clearBoxPlacement();
   clearCylinderPlacement();
   clearCutPlacement();
+  clearTextPlacement();
   clearSketch();
 
   if (model) {
@@ -220,6 +236,11 @@ function clearActiveDeleteTarget() {
     setStatus('Figura di taglio cancellata.');
     return true;
   }
+  if (activeTool === 'text' && textPlacement) {
+    clearTextPlacement();
+    setStatus('Testo in anteprima cancellato.');
+    return true;
+  }
   if (activeTool === 'line' && sketchPoints.length) {
     clearSketch();
     setStatus('Sagoma cancellata.');
@@ -293,6 +314,11 @@ function updateInspector() {
       description: 'Crea un box o un cilindro di taglio e sottrailo dal file STL caricato.',
       hint: 'Sottrai: clicca sull\'STL o sul piano, regola la figura arancione e applica.',
     },
+    text: {
+      title: 'Testo 3D',
+      description: 'Clicca il punto di partenza, scrivi il testo e regola font, profondita, larghezza ed effetti.',
+      hint: 'Testo: clicca il punto basso sinistro, poi modifica il pannello a destra.',
+    },
     line: {
       title: 'Linea',
       description: 'Traccia una sagoma chiusa sul piano di lavoro, poi estrudila con una distanza.',
@@ -324,12 +350,13 @@ function updateInspector() {
   ui.boxForm.hidden = activeTool !== 'box';
   ui.cylinderForm.hidden = activeTool !== 'cylinder';
   ui.cutForm.hidden = activeTool !== 'cut';
+  ui.textForm.hidden = activeTool !== 'text';
   ui.sketchForm.hidden = activeTool !== 'line';
   ui.measurePanel.hidden = activeTool !== 'measure';
-  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'line'].includes(activeTool);
+  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(activeTool);
   ui.inspector.classList.toggle(
     'open',
-    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'line', 'measure'].includes(activeTool),
+    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line', 'measure'].includes(activeTool),
   );
   updateMeasureBoxMode();
 }
@@ -344,6 +371,7 @@ function setTool(tool) {
   if (activeTool === 'box' && tool !== 'box') clearBoxPlacement();
   if (activeTool === 'cylinder' && tool !== 'cylinder') clearCylinderPlacement();
   if (activeTool === 'cut' && tool !== 'cut') clearCutPlacement();
+  if (activeTool === 'text' && tool !== 'text') clearTextPlacement();
   if (activeTool === 'line' && tool !== 'line') clearSketch();
   activeTool = tool;
   if (tool === 'measure') clearSelection();
@@ -368,6 +396,10 @@ function setTool(tool) {
     clearCutPlacement();
     updateCutFields();
   }
+  if (tool === 'text') {
+    clearSelection();
+    clearTextPlacement();
+  }
   if (tool === 'line') {
     clearSelection();
     clearSketch();
@@ -386,7 +418,7 @@ function setTool(tool) {
       ? 'grab'
       : tool === 'pan'
         ? 'move'
-        : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'line'].includes(tool)
+        : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(tool)
           ? 'crosshair'
           : 'default';
   updateInspector();
@@ -398,6 +430,7 @@ function setTool(tool) {
     box: 'Parallelepipedo: clicca il punto di appoggio, poi regola misure e somma/sottrai.',
     cylinder: 'Cilindro: clicca il centro di appoggio, poi regola diametro, altezza e asse.',
     cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
+    text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
     line: 'Linea: clicca i punti della sagoma. Torna al primo punto per chiuderla.',
     measure: 'Misura: clicca il primo punto.',
     orbit: 'Orbita: trascina per ruotare la vista.',

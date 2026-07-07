@@ -356,6 +356,99 @@ function applyCut() {
   applyPrimitiveGeometry(geometry, 'subtract', 'Figura sottratta dal file STL.');
 }
 
+async function selectedTextFont() {
+  const family = textFontSources[ui.textFont.value] ?? textFontSources.helvetiker;
+  const url = ui.textBold.checked ? family.bold : family.regular;
+  if (!textFontCache.has(url)) {
+    textFontCache.set(url, fontLoader.loadAsync(url));
+  }
+  return textFontCache.get(url);
+}
+
+async function textGeometryFromState() {
+  if (!textPlacement) return null;
+  const base = textPlacement.basePoint.clone().add(inputVector(ui.textOffsetInputs));
+  return createTextGeometryFromBase(base, ui.textContent.value, await selectedTextFont(), {
+    size: parseDecimal(ui.textSize.value, 12),
+    depth: parseDecimal(ui.textDepth.value, 3),
+    widthScale: parseDecimal(ui.textWidth.value, 1),
+    bevelSize: parseDecimal(ui.textBevel.value, 0),
+    rotationZ: parseDecimal(ui.textRotation.value, 0),
+    italic: ui.textItalic.checked,
+  });
+}
+
+async function drawTextPreview() {
+  if (!textPlacement || activeTool !== 'text') return;
+  const request = (textPreviewRequest += 1);
+  try {
+    ui.applyText.disabled = true;
+    const geometry = await textGeometryFromState();
+    if (request !== textPreviewRequest) {
+      geometry?.dispose();
+      return;
+    }
+    if (!geometry) {
+      ui.applyText.disabled = true;
+      return;
+    }
+    textPreview = setPreviewMesh(
+      textPreview,
+      geometry,
+      operationColor(ui.textOperation.value),
+      'text-preview',
+    );
+    ui.applyText.disabled = false;
+    setStatus('Anteprima testo aggiornata. Regola font, effetti e profondita oppure applica.');
+  } catch (error) {
+    if (textPreview) {
+      scene.remove(textPreview);
+      disposeObject(textPreview);
+      textPreview = null;
+    }
+    ui.applyText.disabled = true;
+    setStatus(error instanceof Error ? error.message : 'Non riesco a creare questo testo.');
+  }
+}
+
+function setTextPoint(pick) {
+  textPlacement = { basePoint: pick.point.clone() };
+  ui.textInfo.textContent = `Inizio testo X ${pick.point.x.toFixed(2)}, Y ${pick.point.y.toFixed(2)}, Z ${pick.point.z.toFixed(2)} mm - snap ${pick.snapKind}.`;
+  ui.textOffsetInputs.forEach((input) => {
+    input.value = '0';
+  });
+  drawTextPreview();
+  setStatus('Punto testo impostato. Scrivi e regola font, profondita e larghezza.');
+}
+
+function textAt(clientX, clientY) {
+  const pick = pickWorkPoint(clientX, clientY);
+  if (!pick) {
+    setStatus('Clicca sul piano di lavoro o su un solido per appoggiare il testo.');
+    return;
+  }
+  setTextPoint(pick);
+}
+
+async function applyText() {
+  let geometry = null;
+  try {
+    geometry = await textGeometryFromState();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : 'Non riesco a creare questo testo.');
+    return;
+  }
+  if (!geometry) {
+    setStatus('Clicca prima il punto di partenza del testo.');
+    return;
+  }
+  applyPrimitiveGeometry(
+    geometry,
+    ui.textOperation.value,
+    ui.textOperation.value === 'subtract' ? 'Testo 3D sottratto dal solido.' : 'Testo 3D unito al solido.',
+  );
+}
+
 function drawSketchPreview(pointerPoint = null, axis = null) {
   if (sketchPreview) {
     scene.remove(sketchPreview);
@@ -425,4 +518,4 @@ function setSketchLengthInput(value) {
     setStatus('Muovi il mouse o digita una lunghezza in millimetri.');
     return;
   }
-  const len
+  const length = parseLengthInput(sketchLengthInput);

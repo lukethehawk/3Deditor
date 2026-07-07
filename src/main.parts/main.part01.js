@@ -3,7 +3,19 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { ADDITION, Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
+import helvetikerRegularUrl from 'three/examples/fonts/helvetiker_regular.typeface.json?url';
+import helvetikerBoldUrl from 'three/examples/fonts/helvetiker_bold.typeface.json?url';
+import optimerRegularUrl from 'three/examples/fonts/optimer_regular.typeface.json?url';
+import optimerBoldUrl from 'three/examples/fonts/optimer_bold.typeface.json?url';
+import gentilisRegularUrl from 'three/examples/fonts/gentilis_regular.typeface.json?url';
+import gentilisBoldUrl from 'three/examples/fonts/gentilis_bold.typeface.json?url';
+import droidSansRegularUrl from 'three/examples/fonts/droid/droid_sans_regular.typeface.json?url';
+import droidSansBoldUrl from 'three/examples/fonts/droid/droid_sans_bold.typeface.json?url';
+import droidSerifRegularUrl from 'three/examples/fonts/droid/droid_serif_regular.typeface.json?url';
+import droidSerifBoldUrl from 'three/examples/fonts/droid/droid_serif_bold.typeface.json?url';
+import droidMonoRegularUrl from 'three/examples/fonts/droid/droid_sans_mono_regular.typeface.json?url';
 import {
   createRegionGeometry,
   deleteTrianglesFromGeometry,
@@ -21,6 +33,7 @@ import {
   createBoxGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createTextGeometryFromBase,
 } from './primitives.js';
 import { formatDecimal, parseDecimal } from './number-format.js';
 
@@ -105,6 +118,8 @@ let cylinderPlacement = null;
 let cylinderPreview = null;
 let cutPlacement = null;
 let cutPreview = null;
+let textPlacement = null;
+let textPreview = null;
 let sketchPoints = [];
 let sketchPreview = null;
 let sketchClosed = false;
@@ -119,6 +134,41 @@ const pointer = new THREE.Vector2();
 const evaluator = new Evaluator();
 evaluator.useGroups = false;
 evaluator.attributes = ['position', 'normal'];
+const fontLoader = new FontLoader();
+const textFontSources = {
+  helvetiker: {
+    label: 'Helvetiker',
+    regular: helvetikerRegularUrl,
+    bold: helvetikerBoldUrl,
+  },
+  optimer: {
+    label: 'Optimer',
+    regular: optimerRegularUrl,
+    bold: optimerBoldUrl,
+  },
+  gentilis: {
+    label: 'Gentilis',
+    regular: gentilisRegularUrl,
+    bold: gentilisBoldUrl,
+  },
+  droidSans: {
+    label: 'Droid Sans',
+    regular: droidSansRegularUrl,
+    bold: droidSansBoldUrl,
+  },
+  droidSerif: {
+    label: 'Droid Serif',
+    regular: droidSerifRegularUrl,
+    bold: droidSerifBoldUrl,
+  },
+  droidMono: {
+    label: 'Droid Sans Mono',
+    regular: droidMonoRegularUrl,
+    bold: droidMonoRegularUrl,
+  },
+};
+const textFontCache = new Map();
+let textPreviewRequest = 0;
 
 const ui = {
   exportButton: document.querySelector('#export-file'),
@@ -195,6 +245,24 @@ const ui = {
     document.querySelector('#cut-offset-z'),
   ],
   applyCut: document.querySelector('#apply-cut'),
+  textForm: document.querySelector('#text-form'),
+  textInfo: document.querySelector('#text-info'),
+  textContent: document.querySelector('#text-content'),
+  textFont: document.querySelector('#text-font'),
+  textOperation: document.querySelector('#text-operation'),
+  textSize: document.querySelector('#text-size'),
+  textDepth: document.querySelector('#text-depth'),
+  textWidth: document.querySelector('#text-width'),
+  textBevel: document.querySelector('#text-bevel'),
+  textRotation: document.querySelector('#text-rotation'),
+  textBold: document.querySelector('#text-bold'),
+  textItalic: document.querySelector('#text-italic'),
+  textOffsetInputs: [
+    document.querySelector('#text-offset-x'),
+    document.querySelector('#text-offset-y'),
+    document.querySelector('#text-offset-z'),
+  ],
+  applyText: document.querySelector('#apply-text'),
   sketchForm: document.querySelector('#sketch-form'),
   sketchInfo: document.querySelector('#sketch-info'),
   sketchDepth: document.querySelector('#sketch-depth'),
@@ -246,12 +314,12 @@ function setupDecimalSteppers() {
     increment.type = 'button';
     increment.className = 'decimal-stepper';
     increment.setAttribute('aria-label', 'Aumenta valore');
-    increment.textContent = 'â–²';
+    increment.textContent = '+';
     const decrement = document.createElement('button');
     decrement.type = 'button';
     decrement.className = 'decimal-stepper';
     decrement.setAttribute('aria-label', 'Diminuisci valore');
-    decrement.textContent = 'â–¼';
+    decrement.textContent = '-';
     controls.append(increment, decrement);
     input.parentElement?.classList.add('has-decimal-steppers');
     input.after(controls);
@@ -345,6 +413,7 @@ function clearTransientOverlays() {
   boxPreview = null;
   cylinderPreview = null;
   cutPreview = null;
+  textPreview = null;
   sketchPreview = null;
 }
 

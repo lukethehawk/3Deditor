@@ -24,7 +24,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -152,10 +153,12 @@ button {
   background: var(--paper);
   border-right: 1px solid #c9cccd;
   box-shadow: 1px 0 5px rgb(30 38 42 / 8%);
+  overflow-y: auto;
 }
 
 .tool {
   min-height: 64px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -410,7 +413,8 @@ button {
   box-shadow: 0 0 0 2px rgb(22 121 184 / 15%);
 }
 
-.tool-form select {
+.tool-form select,
+.tool-form textarea {
   height: 38px;
   padding: 0 10px;
   border: 1px solid #aeb8bc;
@@ -421,7 +425,16 @@ button {
   outline: none;
 }
 
-.tool-form select:focus {
+.tool-form textarea {
+  height: auto;
+  min-height: 76px;
+  padding: 9px 10px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.tool-form select:focus,
+.tool-form textarea:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 2px rgb(22 121 184 / 15%);
 }
@@ -535,6 +548,27 @@ button {
 .field-with-unit input:disabled {
   color: #8b9498;
   background: #e5e9ea;
+}
+
+.toggle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid #d5dadd;
+  border-radius: 5px;
+  background: white;
+}
+
+.toggle-row input {
+  width: 15px;
+  height: 15px;
 }
 
 .action-button {

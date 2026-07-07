@@ -63,6 +63,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L9 8l5 5 6-7"/><circle cx="4" cy="18" r="2"/><circle cx="9" cy="8" r="2"/><circle cx="14" cy="13" r="2"/><circle cx="20" cy="6" r="2"/></svg>
           <span>Linea</span>
         </button>
+        <button class="tool" data-tool="text" title="Testo 3D (A)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20L10 4h4l6 16"/><path d="M7 14h10"/><path d="M9 20h6"/></svg>
+          <span>Testo</span>
+        </button>
         <button class="tool" data-tool="measure" title="Misura (M)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17L17 4l3 3L7 20z"/><path d="M9 15l-2-2M12 12l-2-2M15 9l-2-2"/></svg>
           <span>Misura</span>
@@ -374,6 +378,79 @@
           <small>Quando la faccia e' chiusa puoi estruderla come con Spingi/Tira.</small>
           <button id="apply-sketch" type="button" class="action-button" disabled>Estrudi sagoma</button>
           <button id="reset-sketch" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="text-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Punto inizio testo</span>
+            <strong id="text-info">Clicca dove vuoi appoggiare il testo.</strong>
+            <small>Il punto cliccato e' l'angolo basso sinistro del testo.</small>
+          </div>
+          <label for="text-content">Testo</label>
+          <textarea id="text-content" rows="3" maxlength="80" placeholder="Scrivi qui">Forma 3D</textarea>
+          <label for="text-font">Font</label>
+          <select id="text-font">
+            <option value="helvetiker">Helvetiker</option>
+            <option value="optimer">Optimer</option>
+            <option value="gentilis">Gentilis</option>
+            <option value="droidSans">Droid Sans</option>
+            <option value="droidSerif">Droid Serif</option>
+            <option value="droidMono">Droid Sans Mono</option>
+          </select>
+          <div class="toggle-row">
+            <label><input id="text-bold" type="checkbox" /> Bold</label>
+            <label><input id="text-italic" type="checkbox" /> Corsivo</label>
+          </div>
+          <label for="text-operation">Operazione</label>
+          <select id="text-operation">
+            <option value="add">Somma al solido</option>
+            <option value="subtract">Sottrai / incidi nel solido</option>
+          </select>
+          <div class="offset-grid">
+            <label for="text-size">Altezza lettere</label>
+            <div class="field-with-unit">
+              <input id="text-size" type="text" inputmode="decimal" min="1" step="0.5" value="12" />
+              <span>mm</span>
+            </div>
+            <label for="text-depth">Profondita</label>
+            <div class="field-with-unit">
+              <input id="text-depth" type="text" inputmode="decimal" min="0.1" step="0.5" value="3" />
+              <span>mm</span>
+            </div>
+            <label for="text-width">Larghezza lettere</label>
+            <div class="field-with-unit">
+              <input id="text-width" type="text" inputmode="decimal" min="0.2" step="0.05" value="1" />
+              <span>x</span>
+            </div>
+            <label for="text-bevel">Smusso bordo</label>
+            <div class="field-with-unit">
+              <input id="text-bevel" type="text" inputmode="decimal" min="0" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="text-rotation">Rotazione Z</label>
+            <div class="field-with-unit">
+              <input id="text-rotation" type="text" inputmode="decimal" step="5" value="0" />
+              <span>deg</span>
+            </div>
+            <label for="text-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="text-offset-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="text-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="text-offset-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="text-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="text-offset-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+          </div>
+          <small>Scrivendo o cambiando valori l'anteprima si aggiorna in tempo reale.</small>
+          <button id="apply-text" type="button" class="action-button" disabled>Applica testo 3D</button>
+          <button id="reset-text" type="button" class="secondary-button">Ricomincia</button>
         </form>
 
         <div id="measure-panel" class="measure-panel" hidden>

@@ -1,4 +1,3 @@
- foro in corso...');
   snapshot();
   try {
     const sourceGeometry = model.geometry.clone();
@@ -175,6 +174,30 @@ document.querySelector('#reset-cut').addEventListener('click', () => {
   clearCutPlacement();
   setStatus('Sottrai: clicca il punto in cui piazzare la figura di taglio.');
 });
+[
+  ui.textContent,
+  ui.textFont,
+  ui.textOperation,
+  ui.textSize,
+  ui.textDepth,
+  ui.textWidth,
+  ui.textBevel,
+  ui.textRotation,
+  ui.textBold,
+  ui.textItalic,
+  ...ui.textOffsetInputs,
+].forEach((input) => {
+  input.addEventListener('input', drawTextPreview);
+  input.addEventListener('change', drawTextPreview);
+});
+ui.applyText.addEventListener('click', (event) => {
+  event.preventDefault();
+  applyText();
+});
+document.querySelector('#reset-text').addEventListener('click', () => {
+  clearTextPlacement();
+  setStatus('Testo: clicca il punto basso sinistro in cui appoggiarlo.');
+});
 ui.applySketch.addEventListener('click', (event) => {
   event.preventDefault();
   applySketch();
@@ -236,6 +259,7 @@ canvas.addEventListener('pointerup', (event) => {
     else if (activeTool === 'box') boxAt(event.clientX, event.clientY);
     else if (activeTool === 'cylinder') cylinderAt(event.clientX, event.clientY);
     else if (activeTool === 'cut') cutAt(event.clientX, event.clientY);
+    else if (activeTool === 'text') textAt(event.clientX, event.clientY);
     else if (activeTool === 'line') sketchAt(event.clientX, event.clientY);
     else selectAt(event.clientX, event.clientY);
   }
@@ -249,7 +273,7 @@ canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 window.addEventListener('keydown', (event) => {
   if (event.target === ui.measureValue && activeTool === 'line') return;
   if (handleSketchLengthShortcut(event)) return;
-  if (event.target.matches('input')) return;
+  if (event.target.matches('input, textarea, select')) return;
   if (handleDeleteKey(event)) return;
   if (event.ctrlKey && event.key.toLowerCase() === 'z') {
     event.preventDefault();
@@ -269,6 +293,7 @@ window.addEventListener('keydown', (event) => {
     b: 'box',
     c: 'cylinder',
     t: 'cut',
+    a: 'text',
     l: 'line',
     m: 'measure',
     o: 'orbit',

@@ -1,4 +1,3 @@
-gth = parseLengthInput(sketchLengthInput);
   if (!Number.isFinite(length)) {
     setStatus('Digita una lunghezza valida in millimetri, per esempio 115,26.');
     return;
@@ -398,4 +397,4 @@ function applyHole() {
     return;
   }
 
-  setStatus('Calcolo del
+  setStatus('Calcolo del foro in corso...');

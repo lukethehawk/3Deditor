@@ -37,6 +37,7 @@ repository verificare che Pages usi **GitHub Actions** come sorgente di deploy.
 - `C`: crea cilindro
 - `T`: sottrai una figura di taglio da un solido/STL
 - `L`: traccia linee e crea sagome chiuse estrudibili
+- `A`: crea testo 3D con font, profondita, larghezza ed effetti
 - `M`: misura tra due punti
 - `O`: orbita
 - rotellina premuta: orbita
@@ -63,6 +64,11 @@ per esportare un unico STL modificato.
 
 Lo strumento linea aiuta a disegnare sagome agganciandosi ai punti del modello e
 agli assi principali quando il puntatore si avvicina alla direzione X, Y o Z.
+
+Lo strumento testo posiziona l'angolo basso sinistro con un clic, poi aggiorna
+l'anteprima in tempo reale mentre si scrive o si regolano font, bold, corsivo,
+altezza, profondita, larghezza lettere, smusso, rotazione e offset. Il testo puo'
+essere sommato al solido oppure sottratto per creare incisioni.
 
 ## Limiti del prototipo
 

@@ -22,6 +22,7 @@ il file come mesh triangolare e offre strumenti pratici:
 - riconoscimento e spostamento di fori cilindrici semplici;
 - primitive booleane: box, cilindro, sottrazione;
 - strumento Linea per sagome chiuse estrudibili;
+- strumento Testo 3D con font, profondita, larghezza lettere ed effetti;
 - misura tra punti con componenti X, Y, Z;
 - annulla/ripristina;
 - rimozione del modello corrente;
@@ -65,7 +66,7 @@ Su PowerShell puo' essere necessario usare `npm.cmd` se l'esecuzione di
 - `scripts/assemble-main.cjs`: concatena le parti `main.partXX.js` in
   `src/main.js`.
 - `src/geometry.js`: funzioni geometriche sulle mesh triangolari.
-- `src/primitives.js`: creazione di box, cilindri e sagome estruse.
+- `src/primitives.js`: creazione di box, cilindri, sagome estruse e testo 3D.
 - `src/hole-detection.js`: riconoscimento euristico dei fori cilindrici.
 - `src/snapping.js`: raccolta vertici e snap a griglia, punti e assi.
 - `src/measurement.js`: calcolo distanza e componenti assiali.
@@ -304,6 +305,9 @@ Le primitive sono create in `src/primitives.js`.
 - `createCylinderGeometryFromBase(base, radius, height, direction)`: cilindro
   orientato su direzione arbitraria.
 - `createExtrudedPolygonGeometry(points, height)`: estrude una sagoma 2D chiusa.
+- `createTextGeometryFromBase(base, text, font, options)`: genera testo 3D
+  estruso usando `TextGeometry`, normalizza l'angolo basso sinistro sul punto
+  cliccato, applica larghezza lettere, corsivo simulato, rotazione e profondita.
 
 `applyPrimitiveGeometry(geometry, operation, successMessage)`:
 
@@ -312,6 +316,49 @@ Le primitive sono create in `src/primitives.js`.
 - altrimenti chiama `booleanGeometry()`.
 
 `booleanGeometry()` usa `three-bvh-csg` con `ADDITION` o `SUBTRACTION`.
+
+## Strumento Testo 3D
+
+Lo strumento Testo usa `TextGeometry` di Three.js e font `typeface.json`
+inclusi nel pacchetto `three`.
+
+Workflow:
+
+1. attivare `Testo` o premere `A`;
+2. cliccare il punto di appoggio, interpretato come angolo basso sinistro del
+   testo;
+3. modificare il pannello a destra;
+4. l'anteprima wireframe si aggiorna in tempo reale;
+5. applicare come somma al solido oppure sottrazione/incisione.
+
+Parametri:
+
+- contenuto testuale;
+- font: Helvetiker, Optimer, Gentilis, Droid Sans, Droid Serif, Droid Sans Mono;
+- bold, dove il font ha una variante bold;
+- corsivo simulato con shear geometrico;
+- altezza lettere in mm;
+- profondita estrusione in mm;
+- larghezza lettere come scala X;
+- smusso bordo;
+- rotazione Z;
+- offset X/Y/Z.
+
+Per non appesantire il bundle web, i font non vengono importati come JSON inline.
+Il controller importa gli URL con `?url`, li pubblica come asset separati e li
+carica con `FontLoader.loadAsync()` solo quando servono. I font caricati vengono
+messi in `textFontCache`; `textPreviewRequest` invalida anteprime asincrone
+vecchie quando l'utente cambia valori rapidamente o resetta lo strumento.
+
+Limiti attuali:
+
+- il testo e' orientato sul piano XY e viene estruso lungo Z;
+- il corsivo e' una trasformazione geometrica, non una vera variante italic del
+  font;
+- la larghezza lettere scala orizzontalmente tutto il testo, quindi modifica
+  anche la spaziatura visiva;
+- incisione e unione usano sempre le booleane mesh, quindi valgono gli stessi
+  limiti delle altre operazioni su STL sporchi o non chiusi.
 
 ## Strumento Linea
 
@@ -380,6 +427,7 @@ Shortcut principali:
 - `C`: cilindro;
 - `T`: sottrai;
 - `L`: linea;
+- `A`: testo 3D;
 - `M`: misura;
 - `O`: orbita;
 - `Canc`: cancella anteprima o superficie selezionata;
@@ -392,6 +440,7 @@ Shortcut principali:
   parametriche.
 - Le booleane richiedono mesh ragionevolmente chiuse e pulite.
 - La cancellazione di superfici puo' lasciare buchi aperti.
+- Il testo 3D e' una geometria mesh, non testo modificabile dopo l'applicazione.
 - La rilevazione fori e' euristica.
 - Le normali di STL sporchi possono rendere ambigue facce, fori e sottrazioni.
 - Undo/redo salva solo geometrie, non stato UI completo.
