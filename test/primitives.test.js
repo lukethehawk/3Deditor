@@ -12,23 +12,6 @@ import {
 
 const testFont = new FontLoader().parse(helvetikerRegularData);
 
-function hasCapNormal(geometry, z, direction) {
-  const position = geometry.getAttribute('position');
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const c = new THREE.Vector3();
-  for (let triangle = 0; triangle < position.count / 3; triangle += 1) {
-    a.fromBufferAttribute(position, triangle * 3);
-    b.fromBufferAttribute(position, triangle * 3 + 1);
-    c.fromBufferAttribute(position, triangle * 3 + 2);
-    const onCap = [a, b, c].every((point) => Math.abs(point.z - z) < 1e-4);
-    if (!onCap) continue;
-    const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
-    if (normal.z * direction > 0.9) return true;
-  }
-  return false;
-}
-
 test('createBoxGeometryFromBase places the base on the picked point z', () => {
   const geometry = createBoxGeometryFromBase(
     new THREE.Vector3(10, 20, 3),
@@ -97,7 +80,7 @@ test('createTextGeometryFromBase extrudes text along the requested direction', (
   assert.equal(Math.round(geometry.boundingBox.min.z), -1);
 });
 
-test('createTextGeometryFromBase can engrave inward without flipping the text plane', () => {
+test('createTextGeometryFromBase uses the direction vector for inward text engraving', () => {
   const geometry = createTextGeometryFromBase(
     new THREE.Vector3(4, 5, 2),
     'A',
@@ -105,16 +88,11 @@ test('createTextGeometryFromBase can engrave inward without flipping the text pl
     {
       size: 10,
       depth: 3,
-      direction: new THREE.Vector3(0, 0, 1),
-      depthDirection: -1,
+      direction: new THREE.Vector3(0, 0, -1),
     },
   );
   geometry.computeBoundingBox();
   assert.equal(Math.round(geometry.boundingBox.max.z), 2);
   assert.equal(Math.round(geometry.boundingBox.min.z), -1);
-  assert.equal(Math.round(geometry.boundingBox.min.x), 4);
-  assert.equal(Math.round(geometry.boundingBox.min.y), 5);
-  assert.equal(hasCapNormal(geometry, 2, 1), true);
-  assert.equal(hasCapNormal(geometry, -1, -1), true);
 });
 

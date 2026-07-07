@@ -380,10 +380,6 @@ function applyPushPull(distance) {
     setStatus('Inserisci una distanza diversa da zero.');
     return;
   }
-  if (selected.region.triangles.length > MAX_PUSH_PULL_REGION_TRIANGLES) {
-    setStatus('Questa superficie contiene un dettaglio complesso o un testo inciso: Spingi/Tira diretto la deformerebbe.');
-    return;
-  }
   snapshot();
   const geometry = pushPullGeometry(model.geometry, selected.region, distance);
   setModelGeometry(geometry, false);
