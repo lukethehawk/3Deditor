@@ -12,6 +12,23 @@ import {
 
 const testFont = new FontLoader().parse(helvetikerRegularData);
 
+function hasCapNormal(geometry, z, direction) {
+  const position = geometry.getAttribute('position');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let triangle = 0; triangle < position.count / 3; triangle += 1) {
+    a.fromBufferAttribute(position, triangle * 3);
+    b.fromBufferAttribute(position, triangle * 3 + 1);
+    c.fromBufferAttribute(position, triangle * 3 + 2);
+    const onCap = [a, b, c].every((point) => Math.abs(point.z - z) < 1e-4);
+    if (!onCap) continue;
+    const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
+    if (normal.z * direction > 0.9) return true;
+  }
+  return false;
+}
+
 test('createBoxGeometryFromBase places the base on the picked point z', () => {
   const geometry = createBoxGeometryFromBase(
     new THREE.Vector3(10, 20, 3),
@@ -97,5 +114,7 @@ test('createTextGeometryFromBase can engrave inward without flipping the text pl
   assert.equal(Math.round(geometry.boundingBox.min.z), -1);
   assert.equal(Math.round(geometry.boundingBox.min.x), 4);
   assert.equal(Math.round(geometry.boundingBox.min.y), 5);
+  assert.equal(hasCapNormal(geometry, 2, 1), true);
+  assert.equal(hasCapNormal(geometry, -1, -1), true);
 });
 

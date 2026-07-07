@@ -13,6 +13,25 @@ function ensureNonIndexed(geometry) {
   return geometry.index ? geometry.toNonIndexed() : geometry;
 }
 
+function reverseTriangleWinding(geometry) {
+  for (const attributeName of Object.keys(geometry.attributes)) {
+    const attribute = geometry.getAttribute(attributeName);
+    const item = Array.from({ length: attribute.itemSize });
+    for (let triangle = 0; triangle < attribute.count / 3; triangle += 1) {
+      const second = triangle * 3 + 1;
+      const third = triangle * 3 + 2;
+      for (let component = 0; component < attribute.itemSize; component += 1) {
+        item[component] = attribute.getComponent(second, component);
+      }
+      for (let component = 0; component < attribute.itemSize; component += 1) {
+        attribute.setComponent(second, component, attribute.getComponent(third, component));
+        attribute.setComponent(third, component, item[component]);
+      }
+    }
+    attribute.needsUpdate = true;
+  }
+}
+
 export function createBoxGeometryFromBase(center, size) {
   const geometry = ensureNonIndexed(new THREE.BoxGeometry(
     Math.max(size.x, 0.1),
@@ -115,6 +134,7 @@ export function createTextGeometryFromBase(base, text, font, options = {}) {
 
   if (depthDirection < 0) {
     geometry.scale(1, 1, -1);
+    reverseTriangleWinding(geometry);
   }
 
   geometry.computeBoundingBox();

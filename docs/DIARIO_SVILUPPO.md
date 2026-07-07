@@ -258,6 +258,12 @@ lungo la normale della regione. E' una modifica mesh diretta, non una booleana
 CAD. Funziona bene su facce piane semplici; puo' creare geometrie non manifold
 se usato su mesh complesse o facce con topologia difficile.
 
+`applyPushPull()` blocca regioni oltre `MAX_PUSH_PULL_REGION_TRIANGLES`: una
+faccia gia incisa da testo puo' contenere centinaia di triangoli e bordi interni.
+Muoverla come superficie semplice deformerebbe le pareti dell'incisione e
+creerebbe frammenti verticali. In quel caso l'app mostra un messaggio invece di
+rompere la mesh.
+
 ## Cancellazione con Canc
 
 `handleDeleteKey(event)` intercetta `Delete` fuori dagli input.
@@ -383,6 +389,10 @@ Orientamento:
 - in modalita sottrai/incidi, solo la profondita viene invertita e quindi entra
   nel solido: il piano delle lettere non viene ruotato di 180 gradi, evitando il
   testo specchiato.
+- quando la profondita viene invertita, `reverseTriangleWinding()` corregge
+  l'ordine dei vertici dei triangoli. Senza questa correzione il cutter del testo
+  puo' risultare parzialmente inside-out e generare CSG con pareti/frammenti
+  degeneri.
 - per l'incisione, `TEXT_ENGRAVE_OVERLAP` sposta il cutter appena fuori dalla
   faccia e aumenta la sua profondita dello stesso margine. Questo evita superfici
   perfettamente coplanari tra testo e modello, che nelle CSG possono produrre
