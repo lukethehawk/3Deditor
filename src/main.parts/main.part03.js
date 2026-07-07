@@ -400,16 +400,22 @@ async function selectedTextFont() {
 
 async function textGeometryFromState() {
   if (!textPlacement) return null;
+  const operation = ui.textOperation.value;
+  const normal = textSurfaceNormalFromState();
+  const isSubtract = operation === 'subtract';
   const base = textPlacement.basePoint.clone().add(inputVector(ui.textOffsetInputs));
+  if (isSubtract) {
+    base.addScaledVector(normal, TEXT_ENGRAVE_OVERLAP);
+  }
   return createTextGeometryFromBase(base, ui.textContent.value, await selectedTextFont(), {
     size: parseDecimal(ui.textSize.value, 12),
-    depth: parseDecimal(ui.textDepth.value, 3),
+    depth: parseDecimal(ui.textDepth.value, 3) + (isSubtract ? TEXT_ENGRAVE_OVERLAP : 0),
     widthScale: parseDecimal(ui.textWidth.value, 1),
     bevelSize: parseDecimal(ui.textBevel.value, 0),
     rotationZ: parseDecimal(ui.textRotation.value, 0),
     italic: ui.textItalic.checked,
-    direction: textSurfaceNormalFromState(),
-    depthDirection: ui.textOperation.value === 'subtract' ? -1 : 1,
+    direction: normal,
+    depthDirection: isSubtract ? -1 : 1,
   });
 }
 

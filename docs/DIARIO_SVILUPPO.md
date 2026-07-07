@@ -374,6 +374,10 @@ Orientamento:
 - in modalita sottrai/incidi, solo la profondita viene invertita e quindi entra
   nel solido: il piano delle lettere non viene ruotato di 180 gradi, evitando il
   testo specchiato.
+- per l'incisione, `TEXT_ENGRAVE_OVERLAP` sposta il cutter appena fuori dalla
+  faccia e aumenta la sua profondita dello stesso margine. Questo evita superfici
+  perfettamente coplanari tra testo e modello, che nelle CSG possono produrre
+  solo linee/intersezioni invece di uno scavo reale.
 
 Prestazioni:
 
