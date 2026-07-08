@@ -217,9 +217,15 @@ document.querySelector('#reset-sketch').addEventListener('click', () => {
   clearSketch();
   setStatus('Linea: clicca il primo punto della sagoma.');
 });
+ui.newSketchLine.addEventListener('click', () => {
+  clearSketchCurrentLine();
+});
 ui.sketchPlane.addEventListener('change', () => {
   clearSketch();
-  setStatus(`Piano Linea impostato su ${ui.sketchPlane.value.toUpperCase()}. Clicca il primo punto.`);
+  const mode = ui.sketchPlane.value === 'auto'
+    ? 'Auto 3D: i punti magnetici restano nella loro posizione reale.'
+    : `Piano Linea impostato su ${ui.sketchPlane.value.toUpperCase()}.`;
+  setStatus(`${mode} Clicca il primo punto.`);
 });
 ui.sketchInference.addEventListener('change', () => {
   clearSketch();

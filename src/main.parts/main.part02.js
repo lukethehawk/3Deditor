@@ -75,6 +75,8 @@ function clearTransformPreview() {
 
 function clearSketch() {
   sketchPoints = [];
+  sketchEdges = [];
+  sketchFaces = [];
   sketchClosed = false;
   sketchPreviewPoint = null;
   sketchPreviewAxis = null;
@@ -85,9 +87,22 @@ function clearSketch() {
     sketchPreview = null;
     requestRender();
   }
-  ui.sketchInfo.textContent = 'Clicca i punti della sagoma. Torna vicino al primo punto per chiuderla.';
+  ui.sketchInfo.textContent = 'Clicca punti, vertici o punti medi. Le linee restano finche premi Ricomincia.';
   updateMeasureBoxMode();
+  ui.applySketch.textContent = 'Applica facce';
   ui.applySketch.disabled = true;
+}
+
+function clearSketchCurrentLine() {
+  sketchPoints = [];
+  sketchClosed = false;
+  sketchPreviewPoint = null;
+  sketchPreviewAxis = null;
+  sketchLengthInput = '';
+  ui.measureValue.value = '-- mm';
+  updateMeasureBoxMode();
+  drawSketchPreview();
+  ui.sketchInfo.textContent = `${sketchEdges.length} linee e ${sketchFaces.length} facce in bozza. Clicca un punto per iniziare un'altra linea.`;
 }
 
 function updateEdges() {
@@ -418,9 +433,14 @@ function clearActiveDeleteTarget() {
     setStatus('Testo in anteprima cancellato.');
     return true;
   }
-  if (activeTool === 'line' && sketchPoints.length) {
-    clearSketch();
-    setStatus('Sagoma cancellata.');
+  if (activeTool === 'line' && (sketchPoints.length || sketchEdges.length || sketchFaces.length)) {
+    if (sketchPoints.length) {
+      clearSketchCurrentLine();
+      setStatus('Linea corrente cancellata. Le altre linee restano in bozza.');
+    } else {
+      clearSketch();
+      setStatus('Bozza linee cancellata.');
+    }
     return true;
   }
   return false;
@@ -499,8 +519,8 @@ function updateInspector() {
     },
     line: {
       title: 'Linea',
-      description: 'Traccia una sagoma chiusa sul piano di lavoro, poi estrudila con una distanza.',
-      hint: 'Linea: clicca i vertici. Vicino agli assi il segmento si blocca automaticamente.',
+      description: 'Traccia una rete di spigoli 3D. Quando gli spigoli chiudono un contorno, nasce una faccia applicabile al modello.',
+      hint: 'Linea: in Auto 3D aggancia vertici e punti medi reali. Usa Nuova linea per ripartire senza perdere gli spigoli gia tracciati.',
     },
     measure: {
       title: 'Misura',
@@ -618,7 +638,7 @@ function setTool(tool) {
     cylinder: 'Cilindro: clicca il centro di appoggio, poi regola diametro, altezza e asse.',
     cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
     text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
-    line: 'Linea: clicca i punti della sagoma. Torna al primo punto per chiuderla.',
+    line: 'Linea: clicca punti magnetici e spigoli liberi. Auto 3D permette linee su piani diversi.',
     measure: 'Misura: clicca il primo punto.',
     transform: 'Trasforma: inserisci valori e applica al modello.',
     orbit: 'Orbita: trascina per ruotare la vista.',
@@ -640,16 +660,73 @@ function setRayFromPointer(clientX, clientY) {
   raycaster.setFromCamera(pointer, camera);
 }
 
+function snapTargetPoint(candidate) {
+  return candidate?.isVector3 ? candidate : candidate?.point;
+}
+
+function findScreenSnapPoint(clientX, clientY, targets, maxPixelDistance = 14) {
+  const rect = canvas.getBoundingClientRect();
+  let best = null;
+  let bestDistanceSq = maxPixelDistance * maxPixelDistance;
+  const projected = new THREE.Vector3();
+
+  for (const candidate of targets) {
+    const point = snapTargetPoint(candidate);
+    if (!point) continue;
+    projected.copy(point).project(camera);
+    if (projected.z < -1 || projected.z > 1) continue;
+
+    const x = rect.left + ((projected.x + 1) / 2) * rect.width;
+    const y = rect.top + ((1 - projected.y) / 2) * rect.height;
+    const dx = x - clientX;
+    const dy = y - clientY;
+    const distanceSq = dx * dx + dy * dy;
+    if (distanceSq >= bestDistanceSq) continue;
+
+    bestDistanceSq = distanceSq;
+    best = {
+      distance: Math.sqrt(distanceSq),
+      kind: candidate.kind ?? 'vertice',
+      point: point.clone(),
+    };
+  }
+
+  return best;
+}
+
 function pickWorkPoint(clientX, clientY, options = {}) {
   const {
+    allowScreenSnap = false,
     axisStart = null,
     inferenceDirections = [],
+    extraSnapPoints = [],
     modelOnly = false,
     preferWorkPlane = false,
+    projectSnapsToWorkPlane = true,
+    screenSnapDistance = 14,
+    screenSnapPoints = null,
     snapGrid = true,
     workPlane = null,
   } = options;
   setRayFromPointer(clientX, clientY);
+  const availableSnapPoints = [...snapPoints, ...extraSnapPoints];
+  const screenSnap = allowScreenSnap
+    ? findScreenSnapPoint(clientX, clientY, screenSnapPoints ?? availableSnapPoints, screenSnapDistance)
+    : null;
+  if (screenSnap && !modelOnly) {
+    const finalPoint = workPlane && preferWorkPlane && projectSnapsToWorkPlane
+      ? workPlane.projectPoint(screenSnap.point, new THREE.Vector3())
+      : screenSnap.point;
+    return {
+      axis: null,
+      hit: null,
+      normal: new THREE.Vector3(0, 0, 1),
+      point: finalPoint,
+      snapKind: screenSnap.kind,
+      source: 'snap',
+    };
+  }
+
   const planePoint = workPlane && !modelOnly
     ? raycaster.ray.intersectPlane(workPlane, new THREE.Vector3())
     : null;
@@ -688,11 +765,14 @@ function pickWorkPoint(clientX, clientY, options = {}) {
 
   const snapped = snapPoint(point, {
     gridSize: 1,
-    snapPoints,
+    snapPoints: availableSnapPoints,
     snapDistance: 2.5,
   });
   const snappedPoint = !snapGrid && snapped.kind === 'griglia' ? point : snapped.point;
-  const finalPoint = workPlane && preferWorkPlane
+  const shouldProjectToWorkPlane = workPlane
+    && preferWorkPlane
+    && (projectSnapsToWorkPlane || snapped.kind === 'griglia');
+  const finalPoint = shouldProjectToWorkPlane
     ? workPlane.projectPoint(snappedPoint, new THREE.Vector3())
     : snappedPoint;
   const snapKind = !snapGrid && snapped.kind === 'griglia' ? 'superficie' : snapped.kind;

@@ -7,6 +7,7 @@ import {
   createBoxGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createPolygonFaceGeometry,
   createTextGeometryFromBase,
 } from '../src/primitives.js';
 
@@ -61,6 +62,18 @@ test('createExtrudedPolygonGeometry supports vertical sketch planes', () => {
   geometry.computeBoundingBox();
   assert.equal(Math.round(geometry.boundingBox.min.y), 2);
   assert.equal(Math.round(geometry.boundingBox.max.y), 6);
+  assert.equal(Math.round(geometry.boundingBox.max.z), 10);
+});
+
+test('createPolygonFaceGeometry creates a flat vertical face', () => {
+  const geometry = createPolygonFaceGeometry([
+    new THREE.Vector3(0, 2, 0),
+    new THREE.Vector3(0, 2, 10),
+    new THREE.Vector3(10, 2, 0),
+  ]);
+  geometry.computeBoundingBox();
+  assert.equal(Math.round(geometry.boundingBox.min.y), 2);
+  assert.equal(Math.round(geometry.boundingBox.max.y), 2);
   assert.equal(Math.round(geometry.boundingBox.max.z), 10);
 });
 

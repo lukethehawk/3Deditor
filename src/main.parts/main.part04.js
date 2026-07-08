@@ -12,39 +12,193 @@
   setStatus(`Lunghezza segmento impostata a ${formatMillimeters(length)}. Premi Invio per fissare il punto.`);
 }
 
+function sketchPointKey(point) {
+  return `${point.x.toFixed(3)}:${point.y.toFixed(3)}:${point.z.toFixed(3)}`;
+}
+
+function sketchEdgeKey(start, end) {
+  return [sketchPointKey(start), sketchPointKey(end)].sort().join('|');
+}
+
+function sketchFaceKey(points) {
+  return points.map(sketchPointKey).sort().join('|');
+}
+
+function sketchDisplayPoints() {
+  const points = new Map();
+  for (const point of sketchPoints) points.set(sketchPointKey(point), point);
+  for (const edge of sketchEdges) {
+    points.set(sketchPointKey(edge.start), edge.start);
+    points.set(sketchPointKey(edge.end), edge.end);
+  }
+  for (const face of sketchFaces) {
+    for (const point of face.points) points.set(sketchPointKey(point), point);
+  }
+  return [...points.values()];
+}
+
+function sketchSnapTargets() {
+  const targets = sketchDisplayPoints().map((point) => ({
+    point,
+    kind: 'vertice',
+  }));
+  for (const edge of sketchEdges) {
+    targets.push({
+      kind: 'punto medio',
+      point: edge.start.clone().add(edge.end).multiplyScalar(0.5),
+    });
+  }
+  return targets;
+}
+
+function sketchEdgeExists(start, end) {
+  const key = sketchEdgeKey(start, end);
+  return sketchEdges.some((edge) => edge.key === key);
+}
+
+function modelEdgeExists(start, end) {
+  if (!model) return false;
+  const position = model.geometry.getAttribute('position');
+  const key = sketchEdgeKey(start, end);
+  const point = new THREE.Vector3();
+  const trianglePoints = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (let triangle = 0; triangle < position.count / 3; triangle += 1) {
+    for (let corner = 0; corner < 3; corner += 1) {
+      point.fromBufferAttribute(position, triangle * 3 + corner);
+      trianglePoints[corner].copy(point);
+    }
+    if (
+      sketchEdgeKey(trianglePoints[0], trianglePoints[1]) === key ||
+      sketchEdgeKey(trianglePoints[1], trianglePoints[2]) === key ||
+      sketchEdgeKey(trianglePoints[2], trianglePoints[0]) === key
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sketchOrModelEdgeExists(start, end) {
+  return sketchEdgeExists(start, end) || modelEdgeExists(start, end);
+}
+
+function addSketchFace(points) {
+  const key = sketchFaceKey(points);
+  if (sketchFaces.some((face) => face.key === key)) return false;
+  try {
+    const geometry = createPolygonFaceGeometry(points);
+    geometry.dispose();
+  } catch {
+    return false;
+  }
+  sketchFaces.push({
+    key,
+    points: points.map((point) => point.clone()),
+  });
+  return true;
+}
+
+function detectSketchFacesForEdge(start, end) {
+  let created = 0;
+  for (const candidate of sketchDisplayPoints()) {
+    if (candidate.distanceTo(start) < 1e-4 || candidate.distanceTo(end) < 1e-4) continue;
+    if (
+      sketchOrModelEdgeExists(start, candidate) &&
+      sketchOrModelEdgeExists(end, candidate) &&
+      addSketchFace([start, end, candidate])
+    ) {
+      created += 1;
+    }
+  }
+  return created;
+}
+
+function updateSketchApplyState() {
+  ui.applySketch.disabled = sketchFaces.length === 0;
+  ui.applySketch.textContent = sketchFaces.length
+    ? `Applica ${sketchFaces.length} facce`
+    : 'Applica facce';
+}
+
+function commitSketchEdge(start, end, axis = null) {
+  if (start.distanceTo(end) < 1e-4) return { added: false, faces: 0 };
+  const key = sketchEdgeKey(start, end);
+  if (sketchEdges.some((edge) => edge.key === key)) {
+    return { added: false, duplicate: true, faces: 0 };
+  }
+  sketchEdges.push({
+    axis,
+    end: end.clone(),
+    key,
+    start: start.clone(),
+  });
+  return {
+    added: true,
+    faces: detectSketchFacesForEdge(start, end),
+  };
+}
+
 function addSketchPoint(point, axis = null) {
   if (sketchPoints.length >= 3 && point.distanceTo(sketchPoints[0]) < 2.5) {
-    sketchClosed = true;
+    const start = sketchPoints[sketchPoints.length - 1];
+    const end = sketchPoints[0];
+    commitSketchEdge(start, end, axis);
+    addSketchFace(sketchPoints);
+    sketchPoints = [end.clone()];
+    sketchClosed = false;
     sketchLengthInput = '';
     sketchPreviewPoint = null;
     sketchPreviewAxis = null;
-    ui.measureValue.value = `${sketchPoints.length} lati`;
+    ui.measureValue.value = `${sketchFaces.length} facce`;
     updateMeasureBoxMode();
-    ui.sketchInfo.textContent = `Faccia chiusa con ${sketchPoints.length} punti. Ora puoi estruderla.`;
-    ui.applySketch.disabled = false;
+    updateSketchApplyState();
     drawSketchPreview();
-    setStatus('Faccia chiusa. Inserisci la distanza e premi Estrudi sagoma.');
+    setStatus('Faccia chiusa in bozza. Puoi continuare a tracciare linee o applicare le facce.');
     return;
   }
 
+  if (!sketchPoints.length) {
+    sketchPoints.push(point);
+    sketchClosed = false;
+    sketchPreviewPoint = null;
+    sketchPreviewAxis = null;
+    sketchLengthInput = '';
+    ui.measureValue.value = '-- mm';
+    updateMeasureBoxMode();
+    drawSketchPreview();
+    setStatus('Primo punto fissato. Clicca il secondo punto per creare una linea.');
+    return;
+  }
+
+  const start = sketchPoints[sketchPoints.length - 1];
+  const committed = commitSketchEdge(start, point, axis);
   sketchPoints.push(point);
+  if (committed.duplicate) {
+    sketchPoints = [point.clone()];
+  }
   sketchClosed = false;
   sketchPreviewPoint = null;
   sketchPreviewAxis = null;
   sketchLengthInput = '';
-  ui.applySketch.disabled = true;
   ui.measureValue.value = '-- mm';
   updateMeasureBoxMode();
+  updateSketchApplyState();
   const lockText = axis === 'parallel'
     ? 'Segmento parallelo a un lato precedente. '
     : axis !== null
       ? `Segmento bloccato su asse ${['X', 'Y', 'Z'][axis]}. `
       : '';
-  ui.sketchInfo.textContent = `${sketchPoints.length} punti. ${lockText}Torna vicino al primo punto per chiudere.`;
+  ui.sketchInfo.textContent = `${sketchEdges.length} linee, ${sketchFaces.length} facce. ${lockText}Usa Nuova linea per ripartire da un altro punto.`;
   drawSketchPreview();
-  setStatus(sketchPoints.length === 1
-    ? 'Primo punto fissato. Muovi il mouse, digita la lunghezza se vuoi, poi Invio o clic.'
-    : 'Punto aggiunto alla sagoma.');
+  setStatus(committed.faces
+    ? `${committed.faces} faccia chiusa creata in bozza.`
+    : committed.duplicate
+      ? 'Linea gia presente: riparto dal punto scelto.'
+      : 'Linea aggiunta alla bozza.');
+}
+
+function isAutoSketchPlane() {
+  return ui.sketchPlane.value === 'auto';
 }
 
 function sketchPlaneNormal() {
@@ -54,14 +208,21 @@ function sketchPlaneNormal() {
   return new THREE.Vector3(0, 0, 1);
 }
 
+function sketchAutoWorkPlane() {
+  const origin = sketchPoints[sketchPoints.length - 1] ?? new THREE.Vector3(0, 0, 0);
+  const normal = camera.getWorldDirection(new THREE.Vector3()).normalize();
+  return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
+}
+
 function sketchWorkPlane() {
+  if (isAutoSketchPlane()) return sketchAutoWorkPlane();
   const normal = sketchPlaneNormal();
   const origin = sketchPoints[0] ?? new THREE.Vector3(0, 0, 0);
   return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
 }
 
 function constrainPointToSketchPlane(point) {
-  if (!sketchPoints.length) return point;
+  if (!sketchPoints.length || isAutoSketchPlane()) return point;
   return sketchWorkPlane().projectPoint(point, new THREE.Vector3());
 }
 
@@ -95,10 +256,15 @@ function sketchInferenceDirections() {
 
 function sketchAt(clientX, clientY) {
   const axisStart = sketchPoints.length ? sketchPoints[sketchPoints.length - 1] : null;
+  const extraSnapPoints = sketchSnapTargets();
   const pick = pickWorkPoint(clientX, clientY, {
+    allowScreenSnap: true,
     axisStart: sketchAxisInferenceEnabled() ? axisStart : null,
     inferenceDirections: sketchInferenceDirections(),
+    extraSnapPoints,
     preferWorkPlane: sketchPoints.length > 0,
+    projectSnapsToWorkPlane: !isAutoSketchPlane(),
+    screenSnapPoints: [...extraSnapPoints, ...snapPoints],
     workPlane: sketchWorkPlane(),
   });
   if (!pick) {
@@ -114,10 +280,15 @@ function sketchAt(clientX, clientY) {
 
 function previewSketch(clientX, clientY) {
   if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return;
+  const extraSnapPoints = sketchSnapTargets();
   const pick = pickWorkPoint(clientX, clientY, {
+    allowScreenSnap: true,
     axisStart: sketchAxisInferenceEnabled() ? sketchPoints[sketchPoints.length - 1] : null,
     inferenceDirections: sketchInferenceDirections(),
+    extraSnapPoints,
     preferWorkPlane: true,
+    projectSnapsToWorkPlane: !isAutoSketchPlane(),
+    screenSnapPoints: [...extraSnapPoints, ...snapPoints],
     workPlane: sketchWorkPlane(),
   });
   if (!pick) return;
@@ -176,24 +347,21 @@ function handleSketchLengthShortcut(event) {
 }
 
 function applySketch() {
-  if (!sketchClosed || sketchPoints.length < 3) {
-    setStatus('Chiudi prima la sagoma tornando vicino al primo punto.');
-    return;
-  }
-  const height = parseDecimal(ui.sketchDepth.value, 0);
-  if (!(height > 0)) {
-    setStatus('Inserisci una distanza di estrusione maggiore di zero.');
+  if (!sketchFaces.length) {
+    setStatus('Traccia linee fino a chiudere almeno una faccia.');
     return;
   }
   try {
-    const geometry = createExtrudedPolygonGeometry(sketchPoints, height);
-    applyPrimitiveGeometry(
-      geometry,
-      ui.sketchOperation.value,
-      ui.sketchOperation.value === 'subtract' ? 'Sagoma estrusa e sottratta dal solido.' : 'Sagoma estrusa e unita al solido.',
-    );
+    const geometries = sketchFaces.map((face) => createPolygonFaceGeometry(face.points));
+    const geometry = combineGeometries(geometries);
+    for (const item of geometries) item.dispose();
+    if (!geometry) {
+      setStatus('Non riesco a creare facce da queste linee.');
+      return;
+    }
+    appendGeometryToModel(geometry, `${sketchFaces.length} facce applicate al modello.`);
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : 'Non riesco a estrudere questa sagoma.');
+    setStatus(error instanceof Error ? error.message : 'Non riesco ad applicare queste facce.');
   }
 }
 

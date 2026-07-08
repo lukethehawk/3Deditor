@@ -39,10 +39,32 @@ export function createCylinderGeometryFromBase(center, radius, height, axis = ne
 }
 
 export function createExtrudedPolygonGeometry(points, height) {
+  const { shape, origin, xAxis, yAxis, normal } = shapeFromPlanarPoints(points);
+
+  const geometry = ensureNonIndexed(new THREE.ExtrudeGeometry(shape, {
+    depth: Math.max(height, 0.1),
+    bevelEnabled: false,
+    steps: 1,
+  }));
+  geometry.applyMatrix4(new THREE.Matrix4()
+    .makeBasis(xAxis, yAxis, normal)
+    .setPosition(origin));
+  return normalizeGeometry(geometry);
+}
+
+export function createPolygonFaceGeometry(points) {
+  const { shape, origin, xAxis, yAxis } = shapeFromPlanarPoints(points);
+  const geometry = ensureNonIndexed(new THREE.ShapeGeometry(shape));
+  geometry.applyMatrix4(new THREE.Matrix4()
+    .makeBasis(xAxis, yAxis, new THREE.Vector3().crossVectors(xAxis, yAxis).normalize())
+    .setPosition(origin));
+  return normalizeGeometry(geometry);
+}
+
+function shapeFromPlanarPoints(points) {
   if (points.length < 3) {
     throw new Error('Servono almeno tre punti per creare una faccia.');
   }
-
   const origin = points[0].clone();
   let normal = new THREE.Vector3();
   for (let index = 1; index < points.length - 1; index += 1) {
@@ -74,15 +96,13 @@ export function createExtrudedPolygonGeometry(points, height) {
   }
   shape.closePath();
 
-  const geometry = ensureNonIndexed(new THREE.ExtrudeGeometry(shape, {
-    depth: Math.max(height, 0.1),
-    bevelEnabled: false,
-    steps: 1,
-  }));
-  geometry.applyMatrix4(new THREE.Matrix4()
-    .makeBasis(xAxis, yAxis, normal)
-    .setPosition(origin));
-  return normalizeGeometry(geometry);
+  return {
+    normal,
+    origin,
+    shape,
+    xAxis,
+    yAxis,
+  };
 }
 
 export function createTextGeometryFromBase(base, text, font, options = {}) {

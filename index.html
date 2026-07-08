@@ -369,16 +369,12 @@
         <form id="sketch-form" class="tool-form primitive-form" hidden>
           <div class="hole-readout">
             <span>Sagoma</span>
-            <strong id="sketch-info">Clicca i punti della sagoma. Torna vicino al primo punto per chiuderla.</strong>
-            <small>Scegli XY, XZ o YZ per disegnare anche sagome verticali. Disattiva l'aggancio per linee oblique libere.</small>
+            <strong id="sketch-info">Clicca punti, vertici e punti medi per creare spigoli e facce.</strong>
+            <small>Auto 3D aggancia i punti reali anche su piani diversi. Usa XY, XZ o YZ solo quando vuoi vincolare una sagoma piatta.</small>
           </div>
-          <label for="sketch-operation">Operazione</label>
-          <select id="sketch-operation">
-            <option value="add">Somma al solido</option>
-            <option value="subtract">Sottrai dal solido</option>
-          </select>
           <label for="sketch-plane">Piano disegno</label>
           <select id="sketch-plane">
+            <option value="auto">Auto 3D</option>
             <option value="xy">XY orizzontale</option>
             <option value="xz">XZ verticale</option>
             <option value="yz">YZ verticale</option>
@@ -386,13 +382,9 @@
           <div class="toggle-row single">
             <label><input id="sketch-inference" type="checkbox" checked /> Aggancia assi e parallele</label>
           </div>
-          <label for="sketch-depth">Distanza estrusione</label>
-          <div class="field-with-unit">
-            <input id="sketch-depth" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
-            <span>mm</span>
-          </div>
-          <small>Quando la faccia e' chiusa puoi estruderla come con Spingi/Tira.</small>
-          <button id="apply-sketch" type="button" class="action-button" disabled>Estrudi sagoma</button>
+          <small>Le linee restano visibili. Quando chiudono un contorno, la faccia appare in verde e puoi applicarla al modello.</small>
+          <button id="apply-sketch" type="button" class="action-button" disabled>Applica facce</button>
+          <button id="new-sketch-line" type="button" class="secondary-button">Nuova linea</button>
           <button id="reset-sketch" type="button" class="secondary-button">Ricomincia</button>
         </form>
 

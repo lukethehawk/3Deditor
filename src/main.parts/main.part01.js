@@ -38,6 +38,7 @@ import {
   createBoxGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createPolygonFaceGeometry,
   createTextGeometryFromBase,
 } from './primitives.js';
 import { formatDecimal, parseDecimal } from './number-format.js';
@@ -129,6 +130,8 @@ let textPlacement = null;
 let textPreview = null;
 let transformPreview = null;
 let sketchPoints = [];
+let sketchEdges = [];
+let sketchFaces = [];
 let sketchPreview = null;
 let sketchClosed = false;
 let sketchPreviewPoint = null;
@@ -286,11 +289,10 @@ const ui = {
   applyText: document.querySelector('#apply-text'),
   sketchForm: document.querySelector('#sketch-form'),
   sketchInfo: document.querySelector('#sketch-info'),
-  sketchDepth: document.querySelector('#sketch-depth'),
-  sketchOperation: document.querySelector('#sketch-operation'),
   sketchPlane: document.querySelector('#sketch-plane'),
   sketchInference: document.querySelector('#sketch-inference'),
   applySketch: document.querySelector('#apply-sketch'),
+  newSketchLine: document.querySelector('#new-sketch-line'),
   transformForm: document.querySelector('#transform-form'),
   transformTranslateInputs: [
     document.querySelector('#transform-x'),

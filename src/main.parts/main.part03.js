@@ -556,35 +556,37 @@ function drawSketchPreview(pointerPoint = null, axis = null) {
     requestRender();
   }
 
-  const points = [...sketchPoints];
-  if (pointerPoint && !sketchClosed) points.push(pointerPoint);
-  if (!points.length) return;
+  if (!sketchEdges.length && !sketchFaces.length && !sketchPoints.length && !pointerPoint) return;
 
   const group = new THREE.Group();
-  const linePoints = sketchClosed ? [...points, points[0]] : points;
-  if (linePoints.length > 1) {
-    for (let index = 1; index < linePoints.length; index += 1) {
-      const start = linePoints[index - 1];
-      const end = linePoints[index];
-      const isPreviewSegment = pointerPoint && !sketchClosed && index === linePoints.length - 1;
-      const color = sketchSegmentColor(start, end, isPreviewSegment ? axis : null);
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([start, end]),
-        new THREE.LineBasicMaterial({ color, depthTest: false }),
-      );
-      line.renderOrder = 12;
-      group.add(line);
-    }
+  for (const face of sketchFaces) {
+    const geometry = createPolygonFaceGeometry(face.points);
+    const mesh = new THREE.Mesh(geometry, createPreviewMaterial(0x28a45f));
+    mesh.renderOrder = 11;
+    group.add(mesh);
+  }
+  for (const edge of sketchEdges) {
+    const color = sketchSegmentColor(edge.start, edge.end, edge.axis);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([edge.start, edge.end]),
+      new THREE.LineBasicMaterial({ color, depthTest: false }),
+    );
+    line.renderOrder = 12;
+    group.add(line);
+  }
+  if (pointerPoint && sketchPoints.length && !sketchClosed) {
+    const start = sketchPoints[sketchPoints.length - 1];
+    const color = sketchSegmentColor(start, pointerPoint, axis);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([start, pointerPoint]),
+      new THREE.LineBasicMaterial({ color, depthTest: false }),
+    );
+    line.renderOrder = 13;
+    group.add(line);
   }
   const markerRadius = Math.max(model?.geometry.boundingSphere?.radius ?? 50, 30) * 0.008;
-  for (const point of sketchPoints) {
+  for (const point of sketchDisplayPoints()) {
     group.add(createPointMarker(point, 0xffffff, markerRadius));
-  }
-  if (sketchClosed) {
-    const geometry = createExtrudedPolygonGeometry(sketchPoints, 0.05);
-    const face = new THREE.Mesh(geometry, createPreviewMaterial(0x28a45f));
-    face.renderOrder = 11;
-    group.add(face);
   }
   addTransientOverlay(group, 'sketch-preview');
   sketchPreview = group;

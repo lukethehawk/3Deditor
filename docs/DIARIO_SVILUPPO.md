@@ -436,29 +436,48 @@ Limiti attuali:
 
 ## Strumento Linea
 
-Lo strumento Linea permette di costruire sagome chiuse:
+Lo strumento Linea permette di costruire una piccola rete di spigoli e facce:
 
 - clic su punti nel piano o sulla mesh;
 - snap a griglia, vertici e punti medi;
 - blocco asse tramite `snapPointToAxis()`;
 - inferenza parallela tramite `snapPointToDirections()`;
-- scelta del piano di disegno `XY`, `XZ` o `YZ`;
+- scelta del piano di disegno `Auto 3D`, `XY`, `XZ` o `YZ`;
 - toggle per disattivare aggancio assi/parallele quando serve una linea obliqua
   libera;
-- chiusura tornando vicino al primo punto;
-- estrusione con addizione o sottrazione.
+- gli spigoli restano in bozza anche se non chiudono subito una forma;
+- `Nuova linea` azzera solo la linea corrente, mantenendo gli spigoli gia'
+  disegnati;
+- quando gli spigoli chiudono un contorno triangolare o una linea ritorna al
+  punto iniziale, viene creata una faccia verde in anteprima;
+- `Applica facce` scrive le facce in bozza nella mesh STL tramite
+  `appendGeometryToModel()`.
 
-Il primo punto fissa il riferimento del piano scelto. Dal secondo punto in poi,
-il raycast del mouse viene proiettato sul piano passante per il primo punto:
-questo permette di disegnare sagome verticali su XZ/YZ, utili per triangoli,
-fianchi inclinati o forme tipo piramide. I segmenti vengono colorati in base
+In `Auto 3D` il picker usa prima uno snap in spazio-schermo: se il cursore e'
+vicino a un vertice o a un punto medio visibile, viene preso quel punto 3D reale
+senza proiettarlo sul piano corrente. Questo serve per forme come piramidi,
+coni semplificati o fianchi inclinati, dove una sequenza di linee deve passare
+da un piano all'altro. Quando non c'e' un punto magnetico vicino, dopo il primo
+punto viene usato un piano di costruzione davanti alla camera e passante per
+l'ultimo punto, cosi' si puo' tracciare uno spigolo libero nello spazio e usare
+il blocco assi per far salire una linea in Z.
+
+Le modalita' `XY`, `XZ` e `YZ` restano disponibili come vincoli manuali. In quel
+caso i punti non magnetici vengono proiettati sul piano scelto, utile per
+sagome perfettamente piatte o profili da chiudere. Per una piramide si puo'
+tracciare una linea dal centro/base verso l'apice, poi usare `Nuova linea` o
+cliccare un punto gia' esistente per collegare l'apice ai vertici della faccia
+di base. Se il lato di base esiste gia' nella mesh, due spigoli verso l'apice
+bastano per creare la faccia triangolare. I segmenti vengono colorati in base
 all'asse dominante: X rosso, Y verde, Z blu; le inferenze parallele usano un
 colore viola.
 
 Il box in basso a destra diventa `Lunghezza` quando Linea e' attiva. Dopo il
 primo punto si puo' scrivere direttamente una misura, per esempio `115,26`, e
-premere Invio. La direzione resta quella del mouse nel piano scelto, la
-lunghezza viene forzata.
+premere Invio. La direzione resta quella suggerita dal mouse o dall'asse
+agganciato, la lunghezza viene forzata. Le facce create sono superfici
+triangolate piatte, non solidi con spessore: eventuale solidificazione o offset
+resta una funzione futura.
 
 ## Misure
 
