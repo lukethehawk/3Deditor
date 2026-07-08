@@ -29,9 +29,10 @@ import {
 import { calculateMeasurement } from './measurement.js';
 import { detectCylindricalHole } from './hole-detection.js';
 import {
-  collectGeometryVertices,
+  collectGeometrySnapPoints,
   snapPoint,
   snapPointToAxis,
+  snapPointToDirections,
 } from './snapping.js';
 import {
   createBoxGeometryFromBase,
@@ -132,6 +133,7 @@ let sketchClosed = false;
 let sketchPreviewPoint = null;
 let sketchPreviewAxis = null;
 let sketchLengthInput = '';
+let snapIndicator = null;
 let snapPoints = [];
 const undoStack = [];
 const redoStack = [];
@@ -286,6 +288,19 @@ const ui = {
   sketchDepth: document.querySelector('#sketch-depth'),
   sketchOperation: document.querySelector('#sketch-operation'),
   applySketch: document.querySelector('#apply-sketch'),
+  transformForm: document.querySelector('#transform-form'),
+  transformTranslateInputs: [
+    document.querySelector('#transform-x'),
+    document.querySelector('#transform-y'),
+    document.querySelector('#transform-z'),
+  ],
+  transformRotateInputs: [
+    document.querySelector('#transform-rotate-x'),
+    document.querySelector('#transform-rotate-y'),
+    document.querySelector('#transform-rotate-z'),
+  ],
+  transformScale: document.querySelector('#transform-scale'),
+  applyTransform: document.querySelector('#apply-transform'),
   measurePanel: document.querySelector('#measure-panel'),
   measureTotal: document.querySelector('#measure-total'),
   measureX: document.querySelector('#measure-x'),
@@ -448,6 +463,14 @@ function addTransientOverlay(object, kind) {
   requestRender();
 }
 
+function clearSnapIndicator() {
+  if (!snapIndicator) return;
+  scene.remove(snapIndicator);
+  disposeObject(snapIndicator);
+  snapIndicator = null;
+  requestRender();
+}
+
 function clearTransientOverlays() {
   const overlays = [];
   scene.traverse((object) => {
@@ -467,6 +490,7 @@ function clearTransientOverlays() {
   cutPreview = null;
   textPreview = null;
   sketchPreview = null;
+  snapIndicator = null;
 }
 
 function clearMeasurement(resetPanel = true) {

@@ -136,7 +136,7 @@ function setModelGeometry(geometry, recordHistory = true) {
   geometry.computeBoundingSphere();
   model = new THREE.Mesh(geometry, modelMaterial);
   scene.add(model);
-  snapPoints = collectGeometryVertices(model.geometry);
+  snapPoints = collectGeometrySnapPoints(model.geometry);
   updateEdges();
   updateModelActions();
   requestRender();
@@ -184,6 +184,7 @@ function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nu
 
   updateEdges();
   snapPoints = [];
+  clearSnapIndicator();
   currentFileName = 'modello-senza-titolo.stl';
   ui.fileName.textContent = 'Nessun modello';
   updateModelActions();
@@ -263,6 +264,54 @@ async function repairCurrentMesh() {
   } finally {
     hideBusy();
   }
+}
+
+function transformCurrentModel() {
+  if (!model) {
+    setStatus('Apri o crea un modello prima di trasformarlo.');
+    return;
+  }
+
+  const translation = inputVector(ui.transformTranslateInputs);
+  const rotation = new THREE.Euler(
+    THREE.MathUtils.degToRad(parseDecimal(ui.transformRotateInputs[0].value, 0)),
+    THREE.MathUtils.degToRad(parseDecimal(ui.transformRotateInputs[1].value, 0)),
+    THREE.MathUtils.degToRad(parseDecimal(ui.transformRotateInputs[2].value, 0)),
+    'XYZ',
+  );
+  const scale = parseDecimal(ui.transformScale.value, 1);
+  if (!(scale > 0)) {
+    setStatus('La scala deve essere maggiore di zero.');
+    return;
+  }
+
+  const hasTranslation = translation.lengthSq() > 1e-10;
+  const hasRotation = Math.abs(rotation.x) + Math.abs(rotation.y) + Math.abs(rotation.z) > 1e-10;
+  const hasScale = Math.abs(scale - 1) > 1e-10;
+  if (!hasTranslation && !hasRotation && !hasScale) {
+    setStatus('Inserisci almeno uno spostamento, una rotazione o una scala diversa da 1.');
+    return;
+  }
+
+  const geometry = model.geometry.clone();
+  geometry.computeBoundingBox();
+  const center = geometry.boundingBox.getCenter(new THREE.Vector3());
+  const matrix = new THREE.Matrix4()
+    .makeTranslation(translation.x, translation.y, translation.z)
+    .multiply(new THREE.Matrix4().makeTranslation(center.x, center.y, center.z))
+    .multiply(new THREE.Matrix4().makeRotationFromEuler(rotation))
+    .multiply(new THREE.Matrix4().makeScale(scale, scale, scale))
+    .multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+
+  geometry.applyMatrix4(matrix);
+  geometry.computeVertexNormals();
+  snapshot();
+  setModelGeometry(geometry, false);
+  updateHistoryButtons();
+  fitView();
+  setStatus(
+    `Trasformazione applicata: X ${formatMillimeters(translation.x, true)}, Y ${formatMillimeters(translation.y, true)}, Z ${formatMillimeters(translation.z, true)}, scala ${formatDecimal(scale)}x.`,
+  );
 }
 
 function clearActiveDeleteTarget() {
@@ -390,6 +439,11 @@ function updateInspector() {
       description: 'Clicca due punti sul modello. La distanza viene scomposta sugli assi X, Y e Z.',
       hint: 'Misura: clicca il primo punto, poi il secondo. Rosso X, verde Y, blu Z.',
     },
+    transform: {
+      title: 'Trasforma',
+      description: 'Sposta, ruota o scala l\'intero modello applicando la trasformazione ai vertici STL.',
+      hint: 'Trasforma: inserisci spostamento, rotazione o scala e applica.',
+    },
     orbit: {
       title: 'Orbita',
       description: 'Trascina con il tasto sinistro per ruotare la vista.',
@@ -414,10 +468,11 @@ function updateInspector() {
   ui.textForm.hidden = activeTool !== 'text';
   ui.sketchForm.hidden = activeTool !== 'line';
   ui.measurePanel.hidden = activeTool !== 'measure';
-  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(activeTool);
+  ui.transformForm.hidden = activeTool !== 'transform';
+  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line', 'transform'].includes(activeTool);
   ui.inspector.classList.toggle(
     'open',
-    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line', 'measure'].includes(activeTool),
+    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line', 'measure', 'transform'].includes(activeTool),
   );
   updateMeasureBoxMode();
 }
@@ -434,8 +489,10 @@ function setTool(tool) {
   if (activeTool === 'cut' && tool !== 'cut') clearCutPlacement();
   if (activeTool === 'text' && tool !== 'text') clearTextPlacement();
   if (activeTool === 'line' && tool !== 'line') clearSketch();
+  clearSnapIndicator();
   activeTool = tool;
   if (tool === 'measure') clearSelection();
+  if (tool === 'transform') clearSelection();
   if (tool === 'hole') {
     clearSelection();
     clearHoleCreate();
@@ -477,11 +534,11 @@ function setTool(tool) {
   canvas.style.cursor =
     tool === 'orbit'
       ? 'grab'
-      : tool === 'pan'
-        ? 'move'
-        : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(tool)
-          ? 'crosshair'
-          : 'default';
+        : tool === 'pan'
+          ? 'move'
+          : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(tool)
+            ? 'crosshair'
+            : 'default';
   updateInspector();
   const statusByTool = {
     select: 'Selezione attiva. Clicca una superficie del modello.',
@@ -494,6 +551,7 @@ function setTool(tool) {
     text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
     line: 'Linea: clicca i punti della sagoma. Torna al primo punto per chiuderla.',
     measure: 'Misura: clicca il primo punto.',
+    transform: 'Trasforma: inserisci valori e applica al modello.',
     orbit: 'Orbita: trascina per ruotare la vista.',
     pan: 'Panoramica: trascina per spostare la vista.',
   };
@@ -514,7 +572,7 @@ function setRayFromPointer(clientX, clientY) {
 }
 
 function pickWorkPoint(clientX, clientY, options = {}) {
-  const { axisStart = null, modelOnly = false } = options;
+  const { axisStart = null, inferenceDirections = [], modelOnly = false, snapGrid = true } = options;
   const hit = raycastModel(clientX, clientY);
   let point = null;
   let normal = new THREE.Vector3(0, 0, 1);
@@ -535,6 +593,13 @@ function pickWorkPoint(clientX, clientY, options = {}) {
     const locked = snapPointToAxis(axisStart, point);
     point = locked.point;
     axis = locked.axis;
+    if (axis === null && inferenceDirections.length) {
+      const inferred = snapPointToDirections(axisStart, point, inferenceDirections);
+      if (inferred.directionIndex !== null) {
+        point = inferred.point;
+        axis = 'parallel';
+      }
+    }
   }
 
   const snapped = snapPoint(point, {
@@ -542,15 +607,48 @@ function pickWorkPoint(clientX, clientY, options = {}) {
     snapPoints,
     snapDistance: 2.5,
   });
+  const snappedPoint = !snapGrid && snapped.kind === 'griglia' ? point : snapped.point;
+  const snapKind = !snapGrid && snapped.kind === 'griglia' ? 'superficie' : snapped.kind;
 
   return {
     hit,
-    point: snapped.point,
+    point: snappedPoint,
     normal,
     source,
-    snapKind: snapped.kind,
+    snapKind,
     axis,
   };
+}
+
+function snapColor(kind) {
+  if (kind === 'punto medio') return 0xe46f2b;
+  if (kind === 'griglia') return 0xf7cf52;
+  return 0x1679b8;
+}
+
+function drawSnapIndicator(pick) {
+  clearSnapIndicator();
+  if (!pick || pick.snapKind === 'griglia' || pick.snapKind === 'superficie') return;
+  const radius = Math.max(model?.geometry.boundingSphere?.radius ?? 50, 30) * 0.006;
+  snapIndicator = createPointMarker(pick.point, snapColor(pick.snapKind), radius);
+  addTransientOverlay(snapIndicator, 'snap-indicator');
+}
+
+function updateSnapIndicator(clientX, clientY) {
+  if (!['hole', 'measure', 'movehole', 'box', 'cylinder', 'cut', 'text', 'line'].includes(activeTool)) {
+    clearSnapIndicator();
+    return;
+  }
+  const axisStart = activeTool === 'line' && sketchPoints.length
+    ? sketchPoints[sketchPoints.length - 1]
+    : null;
+  const pick = pickWorkPoint(clientX, clientY, {
+    axisStart,
+    inferenceDirections: activeTool === 'line' ? sketchInferenceDirections() : [],
+    modelOnly: activeTool === 'measure' || activeTool === 'movehole',
+    snapGrid: activeTool !== 'measure' && activeTool !== 'movehole',
+  });
+  drawSnapIndicator(pick);
 }
 
 function selectAt(clientX, clientY) {

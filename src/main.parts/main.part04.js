@@ -36,16 +36,34 @@ function addSketchPoint(point, axis = null) {
   ui.applySketch.disabled = true;
   ui.measureValue.value = '-- mm';
   updateMeasureBoxMode();
-  ui.sketchInfo.textContent = `${sketchPoints.length} punti. ${axis !== null ? `Segmento bloccato su asse ${['X', 'Y', 'Z'][axis]}. ` : ''}Torna vicino al primo punto per chiudere.`;
+  const lockText = axis === 'parallel'
+    ? 'Segmento parallelo a un lato precedente. '
+    : axis !== null
+      ? `Segmento bloccato su asse ${['X', 'Y', 'Z'][axis]}. `
+      : '';
+  ui.sketchInfo.textContent = `${sketchPoints.length} punti. ${lockText}Torna vicino al primo punto per chiudere.`;
   drawSketchPreview();
   setStatus(sketchPoints.length === 1
     ? 'Primo punto fissato. Muovi il mouse, digita la lunghezza se vuoi, poi Invio o clic.'
     : 'Punto aggiunto alla sagoma.');
 }
 
+function sketchInferenceDirections() {
+  if (sketchPoints.length < 2) return [];
+  const directions = [];
+  for (let index = 1; index < sketchPoints.length; index += 1) {
+    const direction = sketchPoints[index].clone().sub(sketchPoints[index - 1]);
+    if (direction.lengthSq() > 1e-8) directions.push(direction);
+  }
+  return directions;
+}
+
 function sketchAt(clientX, clientY) {
   const axisStart = sketchPoints.length ? sketchPoints[sketchPoints.length - 1] : null;
-  const pick = pickWorkPoint(clientX, clientY, { axisStart });
+  const pick = pickWorkPoint(clientX, clientY, {
+    axisStart,
+    inferenceDirections: sketchInferenceDirections(),
+  });
   if (!pick) {
     setStatus('Clicca sul piano di lavoro o su un punto agganciabile.');
     return;
@@ -60,6 +78,7 @@ function previewSketch(clientX, clientY) {
   if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return;
   const pick = pickWorkPoint(clientX, clientY, {
     axisStart: sketchPoints[sketchPoints.length - 1],
+    inferenceDirections: sketchInferenceDirections(),
   });
   if (!pick) return;
   const point = applySketchLengthConstraint(pick.point.clone());

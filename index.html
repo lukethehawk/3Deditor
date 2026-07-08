@@ -74,6 +74,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17L17 4l3 3L7 20z"/><path d="M9 15l-2-2M12 12l-2-2M15 9l-2-2"/></svg>
           <span>Misura</span>
         </button>
+        <button class="tool" data-tool="transform" title="Trasforma (G)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>
+          <span>Trasforma</span>
+        </button>
         <div class="tool-divider"></div>
         <button class="tool" data-tool="orbit" title="Orbita (O)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a8 8 0 0113-2l2-2v6h-6l2-2a5.5 5.5 0 10.5 8"/><path d="M9 12l3-3 3 3-3 3z"/></svg>
@@ -476,6 +480,53 @@
           <p id="measure-axis-summary">Clicca il primo punto.</p>
           <button id="clear-measure" type="button" class="secondary-button">Nuova misura</button>
         </div>
+
+        <form id="transform-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Modello intero</span>
+            <strong>Trasforma la mesh corrente</strong>
+            <small>Le modifiche vengono applicate ai vertici, quindi restano compatibili con STL e booleane successive.</small>
+          </div>
+          <div class="offset-grid">
+            <label for="transform-x" class="axis-x">Sposta X</label>
+            <div class="field-with-unit">
+              <input id="transform-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="transform-y" class="axis-y">Sposta Y</label>
+            <div class="field-with-unit">
+              <input id="transform-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="transform-z" class="axis-z">Sposta Z</label>
+            <div class="field-with-unit">
+              <input id="transform-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="transform-rotate-x" class="axis-x">Ruota X</label>
+            <div class="field-with-unit">
+              <input id="transform-rotate-x" type="text" inputmode="decimal" step="5" value="0" />
+              <span>deg</span>
+            </div>
+            <label for="transform-rotate-y" class="axis-y">Ruota Y</label>
+            <div class="field-with-unit">
+              <input id="transform-rotate-y" type="text" inputmode="decimal" step="5" value="0" />
+              <span>deg</span>
+            </div>
+            <label for="transform-rotate-z" class="axis-z">Ruota Z</label>
+            <div class="field-with-unit">
+              <input id="transform-rotate-z" type="text" inputmode="decimal" step="5" value="0" />
+              <span>deg</span>
+            </div>
+            <label for="transform-scale">Scala uniforme</label>
+            <div class="field-with-unit">
+              <input id="transform-scale" type="text" inputmode="decimal" min="0.01" step="0.05" value="1" />
+              <span>x</span>
+            </div>
+          </div>
+          <small>Rotazione e scala avvengono attorno al centro del modello.</small>
+          <button id="apply-transform" type="button" class="action-button">Applica trasformazione</button>
+        </form>
 
         <div id="selection-info" class="selection-info">
           <span class="eyebrow">SELEZIONE</span>

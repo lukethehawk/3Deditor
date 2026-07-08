@@ -91,6 +91,7 @@ ui.fileInput.addEventListener('change', (event) => {
 ui.removeModelButton.addEventListener('click', removeCurrentModel);
 ui.repairModelButton.addEventListener('click', repairCurrentMesh);
 document.querySelector('#export-file').addEventListener('click', exportStl);
+ui.applyTransform.addEventListener('click', transformCurrentModel);
 document.querySelectorAll('.tool').forEach((button) => {
   button.addEventListener('click', () => setTool(button.dataset.tool));
 });
@@ -270,6 +271,7 @@ canvas.addEventListener('pointerup', (event) => {
 });
 canvas.addEventListener('pointermove', (event) => {
   if (appBusy) return;
+  updateSnapIndicator(event.clientX, event.clientY);
   previewMeasurement(event.clientX, event.clientY);
   previewSketch(event.clientX, event.clientY);
 });
@@ -305,6 +307,7 @@ window.addEventListener('keydown', (event) => {
     a: 'text',
     l: 'line',
     m: 'measure',
+    g: 'transform',
     o: 'orbit',
   };
   const tool = shortcuts[event.key.toLowerCase()];

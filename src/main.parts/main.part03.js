@@ -17,30 +17,30 @@ function updateMeasurementPanel(result, preview = false) {
 }
 
 function measureAt(clientX, clientY) {
-  const hit = raycastModel(clientX, clientY);
-  if (!hit) {
+  const pick = pickWorkPoint(clientX, clientY, { modelOnly: true, snapGrid: false });
+  if (!pick) {
     setStatus('Clicca un punto sulla superficie del modello.');
     return;
   }
 
   if (!measurementStart || measurementEnd) {
     clearMeasurement();
-    measurementStart = hit.point.clone();
+    measurementStart = pick.point.clone();
     drawMeasurement(measurementStart, true);
     ui.measureAxisSummary.textContent = 'Primo punto fissato. Clicca il secondo punto.';
     setStatus('Primo punto fissato. Ora clicca il secondo punto.');
     return;
   }
 
-  measurementEnd = hit.point.clone();
+  measurementEnd = pick.point.clone();
   drawMeasurement(measurementEnd);
   setStatus(`Distanza misurata: ${formatMillimeters(measurementResult.total)}.`);
 }
 
 function previewMeasurement(clientX, clientY) {
   if (activeTool !== 'measure' || !measurementStart || measurementEnd) return;
-  const hit = raycastModel(clientX, clientY);
-  if (hit) drawMeasurement(hit.point, true);
+  const pick = pickWorkPoint(clientX, clientY, { modelOnly: true, snapGrid: false });
+  if (pick) drawMeasurement(pick.point, true);
 }
 
 function axisVector(axis) {

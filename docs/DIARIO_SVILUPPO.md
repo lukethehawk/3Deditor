@@ -439,8 +439,9 @@ Limiti attuali:
 Lo strumento Linea permette di costruire sagome chiuse:
 
 - clic su punti nel piano o sulla mesh;
-- snap a griglia o vertici;
+- snap a griglia, vertici e punti medi;
 - blocco asse tramite `snapPointToAxis()`;
+- inferenza parallela tramite `snapPointToDirections()`;
 - chiusura tornando vicino al primo punto;
 - estrusione con addizione o sottrazione.
 
@@ -463,6 +464,19 @@ La UI mostra linea totale tratteggiata e componenti colorate:
 - Y verde;
 - Z blu.
 
+## Trasforma
+
+Lo strumento `Trasforma` (`G`) agisce sul modello intero con input numerici:
+
+- spostamento X/Y/Z in millimetri;
+- rotazione X/Y/Z in gradi;
+- scala uniforme.
+
+La trasformazione viene applicata direttamente ai vertici della `BufferGeometry`
+attorno al centro del modello, poi `setModelGeometry()` ricostruisce snap point,
+bordi e bounding volume. Questo evita di lasciare una trasformazione sulla mesh
+Three.js che potrebbe confondere booleane, raycast o export STL successivi.
+
 ## Snap
 
 `pickWorkPoint()` e' il punto comune per strumenti che posizionano elementi.
@@ -471,7 +485,13 @@ interseca il piano Z=0. Poi applica:
 
 - blocco asse opzionale;
 - snap a griglia 1 mm;
-- snap a vertici raccolti dalla geometria corrente.
+- snap a target raccolti dalla geometria corrente.
+
+`collectGeometrySnapPoints()` raccoglie endpoint e punti medi degli spigoli dei
+triangoli, mantenendo il tipo di target (`vertice`, `punto medio`, `griglia`).
+Quando il mouse passa sopra un target agganciabile la scena mostra un marker:
+blu per vertici, arancione per punti medi. Lo strumento Linea prova anche una
+prima inferenza parallela ai segmenti gia' disegnati nella stessa sagoma.
 
 Questo rende box, cilindri, tagli e linee piu prevedibili.
 
@@ -503,6 +523,7 @@ Shortcut principali:
 - `L`: linea;
 - `A`: testo 3D;
 - `M`: misura;
+- `G`: trasforma modello;
 - `O`: orbita;
 - `Canc`: cancella anteprima o superficie selezionata;
 - `Ctrl+Z` / `Ctrl+Y`: annulla / ripristina.
@@ -529,8 +550,9 @@ Shortcut principali:
 - Import/export STEP usando un motore CAD dedicato, se il progetto passa da
   editor mesh a ricostruzione solida.
 - Pannello livelli/oggetti se si decide di supportare piu solidi separati.
-- Gizmo di trasformazione per sposta/ruota/scala.
-- Snap piu ricchi: midpoint, endpoint evidenziati, inferenze parallele.
+- Gizmo 3D trascinabile con frecce/anelli se il pannello numerico non basta.
+- Snap avanzati successivi: endpoint di bordi ricostruiti, perpendicolari,
+  intersezioni e vincoli piu persistenti.
 - Persistenza progetto in formato JSON interno, oltre a STL.
 - Test end-to-end con browser/Electron per click reali su canvas.
 - Refactor del controller principale in moduli: `model-state`, `tools`,
