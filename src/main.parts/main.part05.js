@@ -89,6 +89,7 @@ ui.fileInput.addEventListener('change', (event) => {
   event.target.value = '';
 });
 ui.removeModelButton.addEventListener('click', removeCurrentModel);
+ui.repairModelButton.addEventListener('click', repairCurrentMesh);
 document.querySelector('#export-file').addEventListener('click', exportStl);
 document.querySelectorAll('.tool').forEach((button) => {
   button.addEventListener('click', () => setTool(button.dataset.tool));

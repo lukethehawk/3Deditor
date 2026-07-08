@@ -7,6 +7,7 @@ import {
   deleteTrianglesFromGeometry,
   findCoplanarRegion,
   pushPullGeometry,
+  repairMeshGeometry,
   triangleCount,
 } from '../src/geometry.js';
 
@@ -79,4 +80,44 @@ test('createDisplayEdgesGeometry keeps the visible box outline', () => {
   const edges = createDisplayEdgesGeometry(geometry, 80);
   assert.ok(edges);
   assert.equal(edges.getAttribute('position').count, 24);
+});
+
+test('repairMeshGeometry welds coincident vertices and removes invalid triangles', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0,
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 0,
+    1, 0, 0,
+    0, 1, 0.00001,
+    0, 0, 0,
+    0, 0, 0,
+    0, 1, 0,
+  ], 3));
+
+  const repaired = repairMeshGeometry(geometry, { tolerance: 0.001 });
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.trianglesBefore, 3);
+  assert.equal(repaired.report.trianglesAfter, 1);
+  assert.equal(repaired.report.verticesAfter, 3);
+  assert.equal(repaired.report.removedDuplicateTriangles, 1);
+  assert.equal(repaired.report.removedDegenerateTriangles, 1);
+  assert.equal(triangleCount(repaired.geometry), 1);
+});
+
+test('repairMeshGeometry reports open boundary edges', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0,
+    1, 0, 0,
+    0, 1, 0,
+  ], 3));
+
+  const repaired = repairMeshGeometry(geometry);
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.boundaryEdges, 3);
+  assert.equal(repaired.report.nonManifoldEdges, 0);
 });

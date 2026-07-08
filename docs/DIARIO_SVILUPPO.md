@@ -187,6 +187,35 @@ questa e' una convenzione di lavoro.
 `<nome>-modificato.stl`. Se non c'e' modello, il pulsante Esporta viene
 disabilitato da `updateModelActions()`.
 
+## Riparazione mesh
+
+`repairCurrentMesh()` e' un'azione sul modello intero, disponibile nella topbar
+con `Ripara mesh`.
+
+La logica pura vive in `repairMeshGeometry()` dentro `src/geometry.js` e lavora
+sulla triangolazione STL senza cercare di ricostruire un solido CAD:
+
+- salda vertici coincidenti o quasi coincidenti con una tolleranza piccola;
+- rimuove triangoli degeneri, cioe' collassati in linea o in punto;
+- rimuove triangoli duplicati, anche se arrivano da vertici separati ma
+  coincidenti;
+- propaga l'orientamento dei triangoli lungo gli spigoli condivisi per rendere
+  piu' coerenti le normali;
+- prova a orientare verso l'esterno ogni componente chiusa usando il volume
+  firmato;
+- restituisce un report con triangoli prima/dopo, vertici saldati, triangoli
+  rimossi, componenti, bordi aperti e spigoli non-manifold.
+
+Questa riparazione e' conservativa: non chiude automaticamente buchi e non
+inventa superfici mancanti. Se il report indica bordi aperti o spigoli
+non-manifold, la mesh resta problematica per alcune booleane. La chiusura buchi
+dovra' essere una funzione separata, idealmente con anteprima o conferma, per
+non tappare aperture volutamente presenti nel pezzo.
+
+La UI mostra un overlay modale durante il calcolo, applica la mesh riparata con
+undo disponibile, aggiorna snap point, bordi visibili e normali tramite
+`setModelGeometry()`.
+
 ## Gestione modello corrente
 
 `setModelGeometry(geometry, recordHistory)` e' il punto unico per sostituire la
@@ -496,8 +525,7 @@ Shortcut principali:
 
 - Modalita oggetto con selezione dell'intero solido oltre alla selezione faccia.
 - Riempimento buchi dopo cancellazione superficie.
-- Riparazione mesh: weld vertici, rimozione triangoli degeneri, orientamento
-  normali, chiusura buchi.
+- Chiusura buchi con anteprima/conferma e scelta della strategia di riempimento.
 - Import/export STEP usando un motore CAD dedicato, se il progetto passa da
   editor mesh a ricostruzione solida.
 - Pannello livelli/oggetti se si decide di supportare piu solidi separati.

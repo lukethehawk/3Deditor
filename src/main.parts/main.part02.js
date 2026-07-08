@@ -102,6 +102,7 @@ function updateEdges() {
 function updateModelActions() {
   const hasModel = Boolean(model);
   ui.exportButton.disabled = !hasModel;
+  ui.repairModelButton.disabled = !hasModel;
   ui.removeModelButton.disabled = !hasModel;
   ui.emptyState.hidden = hasModel;
 }
@@ -220,6 +221,48 @@ function deleteSelectedRegion() {
     setStatus(`Superficie cancellata: ${triangleCount} triangoli rimossi. Usa Ctrl+Z per annullare.`);
   }
   return true;
+}
+
+function formatRepairReport(report) {
+  const cleanup = [
+    `${report.weldedVertices} vertici saldati`,
+    `${report.removedDegenerateTriangles} triangoli degeneri rimossi`,
+    `${report.removedDuplicateTriangles} duplicati rimossi`,
+    `${report.flippedTriangles} triangoli riorientati`,
+  ].join(', ');
+  const topology = [];
+  if (report.boundaryEdges) topology.push(`${report.boundaryEdges} bordi aperti restano`);
+  if (report.nonManifoldEdges) topology.push(`${report.nonManifoldEdges} spigoli non-manifold restano`);
+  const warning = topology.length ? ` Attenzione: ${topology.join(', ')}.` : '';
+  return `Mesh riparata: ${report.trianglesBefore} -> ${report.trianglesAfter} triangoli, ${cleanup}.${warning}`;
+}
+
+async function repairCurrentMesh() {
+  if (!model) {
+    setStatus('Apri o crea un modello prima di riparare la mesh.');
+    return;
+  }
+
+  showBusy('Riparazione mesh...', 'Saldo vertici vicini, rimuovo triangoli difettosi e riallineo le normali.');
+  await waitForNextFrame();
+  await waitForNextFrame();
+
+  try {
+    const repaired = repairMeshGeometry(model.geometry);
+    if (!repaired?.geometry) {
+      setStatus('La riparazione non ha prodotto una mesh valida. Usa Annulla o riapri il file originale.');
+      return;
+    }
+    snapshot();
+    setModelGeometry(repaired.geometry, false);
+    updateHistoryButtons();
+    setStatus(formatRepairReport(repaired.report));
+  } catch (error) {
+    console.error(`Errore riparazione mesh: ${error?.stack ?? error}`);
+    setStatus('Non riesco a riparare questa mesh.');
+  } finally {
+    hideBusy();
+  }
 }
 
 function clearActiveDeleteTarget() {

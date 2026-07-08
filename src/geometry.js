@@ -36,6 +36,221 @@ function pointKey(point, tolerance = DEFAULT_TOLERANCE) {
   ].join(':');
 }
 
+function orderedEdgeKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function triangleAreaSquared(points, a, b, c) {
+  const ab = new THREE.Vector3().subVectors(points[b], points[a]);
+  const ac = new THREE.Vector3().subVectors(points[c], points[a]);
+  return ab.cross(ac).lengthSq() * 0.25;
+}
+
+function triangleSignedVolume(points, triangle) {
+  return points[triangle[0]].dot(
+    new THREE.Vector3().crossVectors(points[triangle[1]], points[triangle[2]]),
+  ) / 6;
+}
+
+function buildTriangleEdgeMap(triangles) {
+  const edgeMap = new Map();
+  triangles.forEach((triangle, triangleIndex) => {
+    for (const [fromCorner, toCorner] of [[0, 1], [1, 2], [2, 0]]) {
+      const from = triangle[fromCorner];
+      const to = triangle[toCorner];
+      const key = orderedEdgeKey(from, to);
+      if (!edgeMap.has(key)) edgeMap.set(key, []);
+      edgeMap.get(key).push({
+        triangleIndex,
+        from,
+        to,
+      });
+    }
+  });
+  return edgeMap;
+}
+
+function orientTrianglesConsistently(points, triangles) {
+  const edgeMap = buildTriangleEdgeMap(triangles);
+  const neighbors = new Map();
+  let boundaryEdges = 0;
+  let nonManifoldEdges = 0;
+
+  for (const edges of edgeMap.values()) {
+    if (edges.length === 1) {
+      boundaryEdges += 1;
+      continue;
+    }
+    if (edges.length > 2) {
+      nonManifoldEdges += 1;
+      continue;
+    }
+
+    const [first, second] = edges;
+    if (!neighbors.has(first.triangleIndex)) neighbors.set(first.triangleIndex, []);
+    if (!neighbors.has(second.triangleIndex)) neighbors.set(second.triangleIndex, []);
+    neighbors.get(first.triangleIndex).push(second);
+    neighbors.get(second.triangleIndex).push(first);
+  }
+
+  const visited = new Set();
+  let flippedTriangles = 0;
+  let components = 0;
+
+  for (let seed = 0; seed < triangles.length; seed += 1) {
+    if (visited.has(seed)) continue;
+    components += 1;
+    const component = [];
+    const queue = [seed];
+    visited.add(seed);
+
+    while (queue.length) {
+      const currentIndex = queue.shift();
+      component.push(currentIndex);
+      const current = triangles[currentIndex];
+      for (const edge of neighbors.get(currentIndex) ?? []) {
+        if (visited.has(edge.triangleIndex)) continue;
+        const neighbor = triangles[edge.triangleIndex];
+        const currentFrom = current.includes(edge.from) && current[(current.indexOf(edge.from) + 1) % 3] === edge.to;
+        const neighborFrom = neighbor.includes(edge.from) && neighbor[(neighbor.indexOf(edge.from) + 1) % 3] === edge.to;
+        if (currentFrom === neighborFrom) {
+          [neighbor[1], neighbor[2]] = [neighbor[2], neighbor[1]];
+          flippedTriangles += 1;
+        }
+        visited.add(edge.triangleIndex);
+        queue.push(edge.triangleIndex);
+      }
+    }
+
+    const volume = component.reduce((sum, triangleIndex) =>
+      sum + triangleSignedVolume(points, triangles[triangleIndex]), 0);
+    if (volume < 0) {
+      for (const triangleIndex of component) {
+        [triangles[triangleIndex][1], triangles[triangleIndex][2]] =
+          [triangles[triangleIndex][2], triangles[triangleIndex][1]];
+      }
+      flippedTriangles += component.length;
+    }
+  }
+
+  return {
+    boundaryEdges,
+    components,
+    flippedTriangles,
+    nonManifoldEdges,
+  };
+}
+
+export function repairMeshGeometry(geometry, options = {}) {
+  const position = geometry.getAttribute('position');
+  if (!position) return null;
+
+  const tolerance = Math.max(options.tolerance ?? DEFAULT_TOLERANCE, 1e-8);
+  const areaTolerance = Math.max(options.areaTolerance ?? tolerance * tolerance, 1e-16);
+  const index = geometry.getIndex();
+  const trianglesBefore = triangleCount(geometry);
+  const verticesBefore = position.count;
+  const point = new THREE.Vector3();
+  const vertexGroups = new Map();
+  const canonicalBySource = [];
+
+  for (let sourceIndex = 0; sourceIndex < position.count; sourceIndex += 1) {
+    point.fromBufferAttribute(position, sourceIndex);
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || !Number.isFinite(point.z)) {
+      canonicalBySource[sourceIndex] = -1;
+      continue;
+    }
+
+    const key = pointKey(point, tolerance);
+    if (!vertexGroups.has(key)) {
+      vertexGroups.set(key, {
+        index: vertexGroups.size,
+        sum: new THREE.Vector3(),
+        count: 0,
+      });
+    }
+    const group = vertexGroups.get(key);
+    group.sum.add(point);
+    group.count += 1;
+    canonicalBySource[sourceIndex] = group.index;
+  }
+
+  const points = Array.from(vertexGroups.values())
+    .sort((a, b) => a.index - b.index)
+    .map((group) => group.sum.multiplyScalar(1 / group.count));
+  const triangles = [];
+  const seenTriangles = new Set();
+  let removedDegenerateTriangles = 0;
+  let removedDuplicateTriangles = 0;
+
+  for (let triangleIndex = 0; triangleIndex < trianglesBefore; triangleIndex += 1) {
+    const aSource = index ? index.getX(triangleIndex * 3) : triangleIndex * 3;
+    const bSource = index ? index.getX(triangleIndex * 3 + 1) : triangleIndex * 3 + 1;
+    const cSource = index ? index.getX(triangleIndex * 3 + 2) : triangleIndex * 3 + 2;
+    const triangle = [
+      canonicalBySource[aSource],
+      canonicalBySource[bSource],
+      canonicalBySource[cSource],
+    ];
+
+    if (
+      triangle.some((vertex) => vertex < 0) ||
+      triangle[0] === triangle[1] ||
+      triangle[1] === triangle[2] ||
+      triangle[2] === triangle[0] ||
+      triangleAreaSquared(points, triangle[0], triangle[1], triangle[2]) <= areaTolerance
+    ) {
+      removedDegenerateTriangles += 1;
+      continue;
+    }
+
+    const sortedKey = [...triangle].sort((a, b) => a - b).join('|');
+    if (seenTriangles.has(sortedKey)) {
+      removedDuplicateTriangles += 1;
+      continue;
+    }
+    seenTriangles.add(sortedKey);
+    triangles.push(triangle);
+  }
+
+  if (!triangles.length) return null;
+
+  const topology = orientTrianglesConsistently(points, triangles);
+  const positions = [];
+  for (const point of points) {
+    positions.push(point.x, point.y, point.z);
+  }
+
+  const indices = [];
+  for (const triangle of triangles) {
+    indices.push(...triangle);
+  }
+
+  const result = new THREE.BufferGeometry();
+  result.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  result.setIndex(indices);
+  result.computeVertexNormals();
+  result.computeBoundingBox();
+  result.computeBoundingSphere();
+
+  return {
+    geometry: result,
+    report: {
+      boundaryEdges: topology.boundaryEdges,
+      components: topology.components,
+      flippedTriangles: topology.flippedTriangles,
+      nonManifoldEdges: topology.nonManifoldEdges,
+      removedDegenerateTriangles,
+      removedDuplicateTriangles,
+      trianglesAfter: triangles.length,
+      trianglesBefore,
+      verticesAfter: points.length,
+      verticesBefore,
+      weldedVertices: verticesBefore - points.length,
+    },
+  };
+}
+
 function triangleKeys(geometry, triangleIndex, tolerance) {
   return [0, 1, 2].map((corner) =>
     pointKey(vertexAt(geometry, triangleIndex, corner, new THREE.Vector3()), tolerance),

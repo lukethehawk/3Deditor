@@ -23,6 +23,7 @@ import {
   deleteTrianglesFromGeometry,
   findCoplanarRegion,
   pushPullGeometry,
+  repairMeshGeometry,
   triangleCount,
 } from './geometry.js';
 import { calculateMeasurement } from './measurement.js';
@@ -185,6 +186,7 @@ let renderRequested = false;
 
 const ui = {
   exportButton: document.querySelector('#export-file'),
+  repairModelButton: document.querySelector('#repair-model'),
   removeModelButton: document.querySelector('#remove-model'),
   fileInput: document.querySelector('#file-input'),
   fileName: document.querySelector('#file-name'),
