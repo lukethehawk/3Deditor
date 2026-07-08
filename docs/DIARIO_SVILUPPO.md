@@ -491,9 +491,11 @@ resta una funzione futura.
 Gli snap del modello non usano piu' tutti i vertici triangolati dello STL come
 bersagli principali. `setModelGeometry()` ricalcola `snapPoints` con
 `collectDisplaySnapPoints()`, cioe' dai soli spigoli visibili/strutturali usati
-anche per il wireframe del modello. Questo riduce gli agganci involontari alle
-diagonali interne create da booleane, fori o mesh STL riparate. Le guide Linea,
-invece, rimangono snap target espliciti tramite `sketchSnapTargets()`.
+anche per il wireframe del modello, piu' i centri delle regioni coplanari
+(`centro faccia`). Questo mantiene comodi gli agganci al centro di una faccia
+senza riattivare gli snap sulle diagonali interne create da booleane, fori o
+mesh STL riparate. Le guide Linea, invece, rimangono snap target espliciti
+tramite `sketchSnapTargets()`.
 `constructionSnapTargets()` espone questi target a `pickWorkPoint()` per tutti
 gli strumenti di posizionamento, mentre `findScreenSnapPoint()` gestisce anche
 il caso di un target segmento (`start`/`end`) calcolando il punto 3D piu' vicino
@@ -546,10 +548,13 @@ strutturali del modello; poi prova il raycast sul modello; se non colpisce e
 - snap a griglia 1 mm;
 - snap a target raccolti dalla geometria corrente e dalle guide Linea.
 
-`collectGeometrySnapPoints()` raccoglie endpoint e punti medi degli spigoli dei
-triangoli, mantenendo il tipo di target (`vertice`, `punto medio`, `griglia`).
-Quando il mouse passa sopra un target agganciabile la scena mostra un marker:
-blu per vertici, arancione per punti medi, viola per punti lungo una guida.
+`collectDisplaySnapPoints()` raccoglie endpoint, punti medi e centri faccia
+dalle geometrie di bordo filtrate. `createDisplayEdgesGeometry()` mostra crease
+reali e boundary chiusi, ma nasconde boundary aperti o spezzati lasciati dalle
+booleane: la mesh STL resta triangolata, ma la facciata viene presentata liscia
+e gli snap non si agganciano a quei residui. Quando il mouse passa sopra un
+target agganciabile la scena mostra un marker: blu per vertici, arancione per
+punti medi, verde per centri faccia, viola per punti lungo una guida.
 Lo strumento Linea prova anche una prima inferenza parallela ai segmenti gia'
 disegnati nella stessa sagoma.
 

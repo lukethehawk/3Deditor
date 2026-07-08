@@ -83,11 +83,12 @@ test('createDisplayEdgesGeometry keeps the visible box outline', () => {
   assert.equal(edges.getAttribute('position').count, 24);
 });
 
-test('collectDisplaySnapPoints exposes visible edge vertices and midpoints', () => {
+test('collectDisplaySnapPoints exposes visible edge vertices, midpoints and face centers', () => {
   const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
   const targets = collectDisplaySnapPoints(geometry, 80);
   assert.equal(targets.filter((target) => target.kind === 'vertice').length, 8);
   assert.equal(targets.filter((target) => target.kind === 'punto medio').length, 12);
+  assert.equal(targets.filter((target) => target.kind === 'centro faccia').length, 6);
 });
 
 test('repairMeshGeometry welds coincident vertices and removes invalid triangles', () => {

@@ -823,6 +823,7 @@ function pickWorkPoint(clientX, clientY, options = {}) {
 }
 
 function snapColor(kind) {
+  if (kind === 'centro faccia') return 0x28a45f;
   if (kind === 'punto medio') return 0xe46f2b;
   if (kind === 'linea guida') return 0x8e44ad;
   if (kind === 'griglia') return 0xf7cf52;

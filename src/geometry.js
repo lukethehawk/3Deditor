@@ -400,20 +400,11 @@ function edgeKey(a, b, tolerance) {
   return `${keys[0]}|${keys[1]}`;
 }
 
-function isOnOuterBoundary(a, b, box, tolerance) {
-  const onSameMinX = Math.abs(a.x - box.min.x) <= tolerance && Math.abs(b.x - box.min.x) <= tolerance;
-  const onSameMaxX = Math.abs(a.x - box.max.x) <= tolerance && Math.abs(b.x - box.max.x) <= tolerance;
-  const onSameMinY = Math.abs(a.y - box.min.y) <= tolerance && Math.abs(b.y - box.min.y) <= tolerance;
-  const onSameMaxY = Math.abs(a.y - box.max.y) <= tolerance && Math.abs(b.y - box.max.y) <= tolerance;
-  return onSameMinX || onSameMaxX || onSameMinY || onSameMaxY;
-}
-
-function shouldShowBoundaryEdge(a, b, box, tolerance) {
-  const longEdge = a.distanceTo(b) > 6;
-  if (longEdge && !isOnOuterBoundary(a, b, box, tolerance)) {
-    return false;
-  }
-  return true;
+function shouldShowBoundaryEdge(a, b, boundaryDegrees, tolerance) {
+  return (
+    (boundaryDegrees.get(pointKey(a, tolerance)) ?? 0) >= 2 &&
+    (boundaryDegrees.get(pointKey(b, tolerance)) ?? 0) >= 2
+  );
 }
 
 function collectDisplayEdges(geometry, angleDegrees = 80, tolerance = DEFAULT_TOLERANCE) {
@@ -421,7 +412,6 @@ function collectDisplayEdges(geometry, angleDegrees = 80, tolerance = DEFAULT_TO
   if (!position) return [];
 
   const triangleTotal = triangleCount(geometry);
-  const box = new THREE.Box3().setFromBufferAttribute(position);
   const threshold = Math.cos(THREE.MathUtils.degToRad(angleDegrees));
   const edgeMap = new Map();
 
@@ -440,13 +430,23 @@ function collectDisplayEdges(geometry, angleDegrees = 80, tolerance = DEFAULT_TO
   }
 
   const result = [];
+  const boundaryDegrees = new Map();
+  for (const edges of edgeMap.values()) {
+    if (edges.length !== 1) continue;
+    const [edge] = edges;
+    const aKey = pointKey(edge.a, tolerance);
+    const bKey = pointKey(edge.b, tolerance);
+    boundaryDegrees.set(aKey, (boundaryDegrees.get(aKey) ?? 0) + 1);
+    boundaryDegrees.set(bKey, (boundaryDegrees.get(bKey) ?? 0) + 1);
+  }
+
   for (const edges of edgeMap.values()) {
     const [edge] = edges;
     const isBoundary = edges.length === 1;
     const isCrease = edges.some((current, index) =>
       edges.slice(index + 1).some((other) => current.normal.dot(other.normal) < threshold),
     );
-    if ((isBoundary && shouldShowBoundaryEdge(edge.a, edge.b, box, tolerance)) || isCrease) {
+    if ((isBoundary && shouldShowBoundaryEdge(edge.a, edge.b, boundaryDegrees, tolerance)) || isCrease) {
       result.push({
         a: edge.a.clone(),
         b: edge.b.clone(),
@@ -454,6 +454,41 @@ function collectDisplayEdges(geometry, angleDegrees = 80, tolerance = DEFAULT_TO
     }
   }
   return result;
+}
+
+function collectCoplanarRegionCenters(geometry, tolerance = DEFAULT_TOLERANCE) {
+  const position = geometry.getAttribute('position');
+  if (!position) return [];
+
+  const triangleTotal = triangleCount(geometry);
+  const visited = new Set();
+  const centers = [];
+  const centerKeys = new Set();
+  const point = new THREE.Vector3();
+
+  for (let triangle = 0; triangle < triangleTotal; triangle += 1) {
+    if (visited.has(triangle)) continue;
+    const region = findCoplanarRegion(geometry, triangle, 0.999, tolerance * 10);
+    for (const item of region.triangles) visited.add(item);
+    if (region.triangles.length < 2) continue;
+
+    const box = new THREE.Box3();
+    for (const regionTriangle of region.triangles) {
+      for (let corner = 0; corner < 3; corner += 1) {
+        point.copy(vertexAt(geometry, regionTriangle, corner));
+        box.expandByPoint(point);
+      }
+    }
+    if (box.isEmpty()) continue;
+
+    const center = box.getCenter(new THREE.Vector3());
+    const centerKey = pointKey(center, tolerance * 10);
+    if (centerKeys.has(centerKey)) continue;
+    centerKeys.add(centerKey);
+    centers.push(center);
+  }
+
+  return centers;
 }
 
 export function createDisplayEdgesGeometry(geometry, angleDegrees = 80, tolerance = DEFAULT_TOLERANCE) {
@@ -484,6 +519,9 @@ export function collectDisplaySnapPoints(geometry, angleDegrees = 80, tolerance 
     addTarget(edge.a, 'vertice');
     addTarget(edge.b, 'vertice');
     addTarget(edge.a.clone().add(edge.b).multiplyScalar(0.5), 'punto medio');
+  }
+  for (const center of collectCoplanarRegionCenters(geometry, tolerance)) {
+    addTarget(center, 'centro faccia');
   }
 
   return targets;
