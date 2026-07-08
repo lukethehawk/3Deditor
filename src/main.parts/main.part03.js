@@ -561,15 +561,20 @@ function drawSketchPreview(pointerPoint = null, axis = null) {
   if (!points.length) return;
 
   const group = new THREE.Group();
-  const material = new THREE.LineBasicMaterial({
-    color: axis === 0 ? measureColors.x : axis === 1 ? measureColors.y : axis === 2 ? measureColors.z : 0xe46f2b,
-    depthTest: false,
-  });
   const linePoints = sketchClosed ? [...points, points[0]] : points;
   if (linePoints.length > 1) {
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(linePoints), material);
-    line.renderOrder = 12;
-    group.add(line);
+    for (let index = 1; index < linePoints.length; index += 1) {
+      const start = linePoints[index - 1];
+      const end = linePoints[index];
+      const isPreviewSegment = pointerPoint && !sketchClosed && index === linePoints.length - 1;
+      const color = sketchSegmentColor(start, end, isPreviewSegment ? axis : null);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([start, end]),
+        new THREE.LineBasicMaterial({ color, depthTest: false }),
+      );
+      line.renderOrder = 12;
+      group.add(line);
+    }
   }
   const markerRadius = Math.max(model?.geometry.boundingSphere?.radius ?? 50, 30) * 0.008;
   for (const point of sketchPoints) {
@@ -591,7 +596,6 @@ function applySketchLengthConstraint(point) {
   if (!Number.isFinite(length)) return point;
   const start = sketchPoints[sketchPoints.length - 1];
   const direction = point.clone().sub(start);
-  direction.z = 0;
   if (direction.lengthSq() < 1e-8) return point;
   return start.clone().add(direction.normalize().multiplyScalar(length));
 }

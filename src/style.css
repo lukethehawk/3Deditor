@@ -556,6 +556,10 @@ button {
   gap: 8px;
 }
 
+.toggle-row.single {
+  grid-template-columns: 1fr;
+}
+
 .toggle-row label {
   display: flex;
   align-items: center;

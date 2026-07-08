@@ -217,6 +217,16 @@ document.querySelector('#reset-sketch').addEventListener('click', () => {
   clearSketch();
   setStatus('Linea: clicca il primo punto della sagoma.');
 });
+ui.sketchPlane.addEventListener('change', () => {
+  clearSketch();
+  setStatus(`Piano Linea impostato su ${ui.sketchPlane.value.toUpperCase()}. Clicca il primo punto.`);
+});
+ui.sketchInference.addEventListener('change', () => {
+  clearSketch();
+  setStatus(ui.sketchInference.checked
+    ? 'Aggancio assi e parallele attivo. Clicca il primo punto.'
+    : 'Aggancio assi e parallele disattivato. Clicca il primo punto.');
+});
 ui.holeDiameter.addEventListener('input', drawHoleCreatePreview);
 ui.holeDepth.addEventListener('input', drawHoleCreatePreview);
 ui.applyHole.addEventListener('click', (event) => {

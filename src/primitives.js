@@ -43,11 +43,34 @@ export function createExtrudedPolygonGeometry(points, height) {
     throw new Error('Servono almeno tre punti per creare una faccia.');
   }
 
-  const z = points[0].z;
+  const origin = points[0].clone();
+  let normal = new THREE.Vector3();
+  for (let index = 1; index < points.length - 1; index += 1) {
+    normal.crossVectors(
+      points[index].clone().sub(origin),
+      points[index + 1].clone().sub(origin),
+    );
+    if (normal.lengthSq() > 1e-8) break;
+  }
+  if (normal.lengthSq() < 1e-8) {
+    throw new Error('La sagoma deve avere almeno tre punti non allineati.');
+  }
+  normal.normalize();
+
+  let xAxis = points[1].clone().sub(origin);
+  xAxis.addScaledVector(normal, -xAxis.dot(normal));
+  if (xAxis.lengthSq() < 1e-8) {
+    xAxis = new THREE.Vector3(1, 0, 0);
+    xAxis.addScaledVector(normal, -xAxis.dot(normal));
+  }
+  xAxis.normalize();
+  const yAxis = normal.clone().cross(xAxis).normalize();
+
   const shape = new THREE.Shape();
-  shape.moveTo(points[0].x, points[0].y);
+  shape.moveTo(0, 0);
   for (let index = 1; index < points.length; index += 1) {
-    shape.lineTo(points[index].x, points[index].y);
+    const offset = points[index].clone().sub(origin);
+    shape.lineTo(offset.dot(xAxis), offset.dot(yAxis));
   }
   shape.closePath();
 
@@ -56,7 +79,9 @@ export function createExtrudedPolygonGeometry(points, height) {
     bevelEnabled: false,
     steps: 1,
   }));
-  geometry.translate(0, 0, z);
+  geometry.applyMatrix4(new THREE.Matrix4()
+    .makeBasis(xAxis, yAxis, normal)
+    .setPosition(origin));
   return normalizeGeometry(geometry);
 }
 

@@ -288,6 +288,8 @@ const ui = {
   sketchInfo: document.querySelector('#sketch-info'),
   sketchDepth: document.querySelector('#sketch-depth'),
   sketchOperation: document.querySelector('#sketch-operation'),
+  sketchPlane: document.querySelector('#sketch-plane'),
+  sketchInference: document.querySelector('#sketch-inference'),
   applySketch: document.querySelector('#apply-sketch'),
   transformForm: document.querySelector('#transform-form'),
   transformTranslateInputs: [

@@ -49,6 +49,21 @@ test('createExtrudedPolygonGeometry creates a solid from a closed 2D face', () =
   assert.equal(geometry.boundingBox.max.z, 7);
 });
 
+test('createExtrudedPolygonGeometry supports vertical sketch planes', () => {
+  const geometry = createExtrudedPolygonGeometry(
+    [
+      new THREE.Vector3(0, 2, 0),
+      new THREE.Vector3(0, 2, 10),
+      new THREE.Vector3(10, 2, 0),
+    ],
+    4,
+  );
+  geometry.computeBoundingBox();
+  assert.equal(Math.round(geometry.boundingBox.min.y), 2);
+  assert.equal(Math.round(geometry.boundingBox.max.y), 6);
+  assert.equal(Math.round(geometry.boundingBox.max.z), 10);
+});
+
 test('createTextGeometryFromBase creates extruded text from the picked base point', () => {
   const geometry = createTextGeometryFromBase(
     new THREE.Vector3(4, 5, 2),

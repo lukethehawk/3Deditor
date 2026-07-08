@@ -442,12 +442,23 @@ Lo strumento Linea permette di costruire sagome chiuse:
 - snap a griglia, vertici e punti medi;
 - blocco asse tramite `snapPointToAxis()`;
 - inferenza parallela tramite `snapPointToDirections()`;
+- scelta del piano di disegno `XY`, `XZ` o `YZ`;
+- toggle per disattivare aggancio assi/parallele quando serve una linea obliqua
+  libera;
 - chiusura tornando vicino al primo punto;
 - estrusione con addizione o sottrazione.
 
+Il primo punto fissa il riferimento del piano scelto. Dal secondo punto in poi,
+il raycast del mouse viene proiettato sul piano passante per il primo punto:
+questo permette di disegnare sagome verticali su XZ/YZ, utili per triangoli,
+fianchi inclinati o forme tipo piramide. I segmenti vengono colorati in base
+all'asse dominante: X rosso, Y verde, Z blu; le inferenze parallele usano un
+colore viola.
+
 Il box in basso a destra diventa `Lunghezza` quando Linea e' attiva. Dopo il
 primo punto si puo' scrivere direttamente una misura, per esempio `115,26`, e
-premere Invio. La direzione resta quella del mouse, la lunghezza viene forzata.
+premere Invio. La direzione resta quella del mouse nel piano scelto, la
+lunghezza viene forzata.
 
 ## Misure
 

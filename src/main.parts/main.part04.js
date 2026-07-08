@@ -6,8 +6,7 @@
     setStatus('Muovi il mouse nella direzione del segmento, poi scrivi la lunghezza.');
     return;
   }
-  const constrained = applySketchLengthConstraint(sketchPreviewPoint);
-  constrained.z = sketchPoints[0].z;
+  const constrained = constrainPointToSketchPlane(applySketchLengthConstraint(sketchPreviewPoint));
   sketchPreviewPoint = constrained;
   drawSketchPreview(constrained, sketchPreviewAxis);
   setStatus(`Lunghezza segmento impostata a ${formatMillimeters(length)}. Premi Invio per fissare il punto.`);
@@ -48,7 +47,43 @@ function addSketchPoint(point, axis = null) {
     : 'Punto aggiunto alla sagoma.');
 }
 
+function sketchPlaneNormal() {
+  const plane = ui.sketchPlane.value;
+  if (plane === 'xz') return new THREE.Vector3(0, 1, 0);
+  if (plane === 'yz') return new THREE.Vector3(1, 0, 0);
+  return new THREE.Vector3(0, 0, 1);
+}
+
+function sketchWorkPlane() {
+  const normal = sketchPlaneNormal();
+  const origin = sketchPoints[0] ?? new THREE.Vector3(0, 0, 0);
+  return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, origin);
+}
+
+function constrainPointToSketchPlane(point) {
+  if (!sketchPoints.length) return point;
+  return sketchWorkPlane().projectPoint(point, new THREE.Vector3());
+}
+
+function sketchAxisInferenceEnabled() {
+  return ui.sketchInference.checked;
+}
+
+function sketchSegmentColor(start, end, axis = null) {
+  if (axis === 0) return measureColors.x;
+  if (axis === 1) return measureColors.y;
+  if (axis === 2) return measureColors.z;
+  if (axis === 'parallel') return 0x8e44ad;
+
+  const delta = end.clone().sub(start);
+  if (delta.lengthSq() < 1e-8) return 0xe46f2b;
+  const values = [Math.abs(delta.x), Math.abs(delta.y), Math.abs(delta.z)];
+  const dominant = values.indexOf(Math.max(...values));
+  return dominant === 0 ? measureColors.x : dominant === 1 ? measureColors.y : measureColors.z;
+}
+
 function sketchInferenceDirections() {
+  if (!sketchAxisInferenceEnabled()) return [];
   if (sketchPoints.length < 2) return [];
   const directions = [];
   for (let index = 1; index < sketchPoints.length; index += 1) {
@@ -61,28 +96,32 @@ function sketchInferenceDirections() {
 function sketchAt(clientX, clientY) {
   const axisStart = sketchPoints.length ? sketchPoints[sketchPoints.length - 1] : null;
   const pick = pickWorkPoint(clientX, clientY, {
-    axisStart,
+    axisStart: sketchAxisInferenceEnabled() ? axisStart : null,
     inferenceDirections: sketchInferenceDirections(),
+    preferWorkPlane: sketchPoints.length > 0,
+    workPlane: sketchWorkPlane(),
   });
   if (!pick) {
     setStatus('Clicca sul piano di lavoro o su un punto agganciabile.');
     return;
   }
 
-  const point = sketchPoints.length ? applySketchLengthConstraint(pick.point.clone()) : pick.point.clone();
-  if (sketchPoints.length) point.z = sketchPoints[0].z;
+  const point = sketchPoints.length
+    ? constrainPointToSketchPlane(applySketchLengthConstraint(pick.point.clone()))
+    : pick.point.clone();
   addSketchPoint(point, pick.axis);
 }
 
 function previewSketch(clientX, clientY) {
   if (activeTool !== 'line' || !sketchPoints.length || sketchClosed) return;
   const pick = pickWorkPoint(clientX, clientY, {
-    axisStart: sketchPoints[sketchPoints.length - 1],
+    axisStart: sketchAxisInferenceEnabled() ? sketchPoints[sketchPoints.length - 1] : null,
     inferenceDirections: sketchInferenceDirections(),
+    preferWorkPlane: true,
+    workPlane: sketchWorkPlane(),
   });
   if (!pick) return;
-  const point = applySketchLengthConstraint(pick.point.clone());
-  point.z = sketchPoints[0].z;
+  const point = constrainPointToSketchPlane(applySketchLengthConstraint(pick.point.clone()));
   sketchPreviewPoint = point;
   sketchPreviewAxis = pick.axis;
   updateSketchLengthReadout(point);

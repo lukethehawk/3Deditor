@@ -641,19 +641,34 @@ function setRayFromPointer(clientX, clientY) {
 }
 
 function pickWorkPoint(clientX, clientY, options = {}) {
-  const { axisStart = null, inferenceDirections = [], modelOnly = false, snapGrid = true } = options;
-  const hit = raycastModel(clientX, clientY);
+  const {
+    axisStart = null,
+    inferenceDirections = [],
+    modelOnly = false,
+    preferWorkPlane = false,
+    snapGrid = true,
+    workPlane = null,
+  } = options;
+  setRayFromPointer(clientX, clientY);
+  const planePoint = workPlane && !modelOnly
+    ? raycaster.ray.intersectPlane(workPlane, new THREE.Vector3())
+    : null;
+  const hit = preferWorkPlane && planePoint ? null : raycastModel(clientX, clientY);
   let point = null;
   let normal = new THREE.Vector3(0, 0, 1);
   let source = 'piano';
 
-  if (hit) {
+  if (preferWorkPlane && planePoint) {
+    point = planePoint;
+    normal = workPlane.normal.clone();
+    source = 'piano';
+  } else if (hit) {
     point = hit.point.clone();
     normal = hit.face.normal.clone().normalize();
     source = 'modello';
   } else if (!modelOnly) {
-    setRayFromPointer(clientX, clientY);
-    point = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
+    point = planePoint ?? raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
+    if (workPlane) normal = workPlane.normal.clone();
   }
   if (!point) return null;
 
@@ -677,11 +692,14 @@ function pickWorkPoint(clientX, clientY, options = {}) {
     snapDistance: 2.5,
   });
   const snappedPoint = !snapGrid && snapped.kind === 'griglia' ? point : snapped.point;
+  const finalPoint = workPlane && preferWorkPlane
+    ? workPlane.projectPoint(snappedPoint, new THREE.Vector3())
+    : snappedPoint;
   const snapKind = !snapGrid && snapped.kind === 'griglia' ? 'superficie' : snapped.kind;
 
   return {
     hit,
-    point: snappedPoint,
+    point: finalPoint,
     normal,
     source,
     snapKind,
