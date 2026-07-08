@@ -436,7 +436,8 @@ Limiti attuali:
 
 ## Strumento Linea
 
-Lo strumento Linea permette di costruire una piccola rete di spigoli e facce:
+Lo strumento Linea permette di costruire guide 3D indipendenti e, quando le
+guide chiudono un contorno, anche piccole facce applicabili al modello:
 
 - clic su punti nel piano o sulla mesh;
 - snap a griglia, vertici e punti medi;
@@ -445,12 +446,16 @@ Lo strumento Linea permette di costruire una piccola rete di spigoli e facce:
 - scelta del piano di disegno `Auto 3D`, `XY`, `XZ` o `YZ`;
 - toggle per disattivare aggancio assi/parallele quando serve una linea obliqua
   libera;
-- gli spigoli restano in bozza anche se non chiudono subito una forma, quindi
-  una linea singola puo' essere usata come guida di misura o costruzione;
+- gli spigoli guida restano in scena anche se non chiudono subito una forma,
+  quindi una linea singola puo' essere usata come guida di misura o costruzione;
 - `Nuova linea` azzera solo la linea corrente, mantenendo gli spigoli gia'
   disegnati;
 - cambiare piano (`Auto 3D`, `XY`, `XZ`, `YZ`) o toggle agganci non cancella
   piu' le linee gia' tracciate;
+- cambiare strumento non cancella piu' gli spigoli gia' confermati: viene
+  pulita solo l'eventuale linea corrente non conclusa;
+- box, cilindro, taglio, testo e misura possono agganciarsi a estremi, punti
+  medi e punti lungo il segmento delle guide;
 - quando gli spigoli chiudono un contorno triangolare o una linea ritorna al
   punto iniziale, viene creata una faccia verde in anteprima;
 - `Applica facce` scrive le facce in bozza nella mesh STL tramite
@@ -489,6 +494,10 @@ bersagli principali. `setModelGeometry()` ricalcola `snapPoints` con
 anche per il wireframe del modello. Questo riduce gli agganci involontari alle
 diagonali interne create da booleane, fori o mesh STL riparate. Le guide Linea,
 invece, rimangono snap target espliciti tramite `sketchSnapTargets()`.
+`constructionSnapTargets()` espone questi target a `pickWorkPoint()` per tutti
+gli strumenti di posizionamento, mentre `findScreenSnapPoint()` gestisce anche
+il caso di un target segmento (`start`/`end`) calcolando il punto 3D piu' vicino
+al cursore sulla linea proiettata a schermo.
 
 ## Misure
 
@@ -529,18 +538,20 @@ camera.
 ## Snap
 
 `pickWorkPoint()` e' il punto comune per strumenti che posizionano elementi.
-Prima prova il raycast sul modello; se non colpisce e `modelOnly` e' falso,
-interseca il piano Z=0. Poi applica:
+Prima prova lo snap in spazio-schermo verso guide di costruzione e snap
+strutturali del modello; poi prova il raycast sul modello; se non colpisce e
+`modelOnly` e' falso, interseca il piano Z=0. Infine applica:
 
 - blocco asse opzionale;
 - snap a griglia 1 mm;
-- snap a target raccolti dalla geometria corrente.
+- snap a target raccolti dalla geometria corrente e dalle guide Linea.
 
 `collectGeometrySnapPoints()` raccoglie endpoint e punti medi degli spigoli dei
 triangoli, mantenendo il tipo di target (`vertice`, `punto medio`, `griglia`).
 Quando il mouse passa sopra un target agganciabile la scena mostra un marker:
-blu per vertici, arancione per punti medi. Lo strumento Linea prova anche una
-prima inferenza parallela ai segmenti gia' disegnati nella stessa sagoma.
+blu per vertici, arancione per punti medi, viola per punti lungo una guida.
+Lo strumento Linea prova anche una prima inferenza parallela ai segmenti gia'
+disegnati nella stessa sagoma.
 
 Questo rende box, cilindri, tagli e linee piu prevedibili.
 

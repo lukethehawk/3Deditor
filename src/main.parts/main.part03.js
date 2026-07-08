@@ -17,7 +17,7 @@ function updateMeasurementPanel(result, preview = false) {
 }
 
 function measureAt(clientX, clientY) {
-  const pick = pickWorkPoint(clientX, clientY, { modelOnly: true, snapGrid: false });
+  const pick = pickWorkPoint(clientX, clientY, { allowScreenSnap: true, modelOnly: true, snapGrid: false });
   if (!pick) {
     setStatus('Clicca un punto sulla superficie del modello.');
     return;
@@ -39,7 +39,7 @@ function measureAt(clientX, clientY) {
 
 function previewMeasurement(clientX, clientY) {
   if (activeTool !== 'measure' || !measurementStart || measurementEnd) return;
-  const pick = pickWorkPoint(clientX, clientY, { modelOnly: true, snapGrid: false });
+  const pick = pickWorkPoint(clientX, clientY, { allowScreenSnap: true, modelOnly: true, snapGrid: false });
   if (pick) drawMeasurement(pick.point, true);
 }
 

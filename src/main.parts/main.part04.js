@@ -47,8 +47,19 @@ function sketchSnapTargets() {
       kind: 'punto medio',
       point: edge.start.clone().add(edge.end).multiplyScalar(0.5),
     });
+    targets.push({
+      end: edge.end,
+      kind: 'linea guida',
+      start: edge.start,
+    });
   }
   return targets;
+}
+
+function constructionSnapTargets() {
+  return sketchEdges.length || sketchFaces.length || sketchPoints.length
+    ? sketchSnapTargets()
+    : [];
 }
 
 function sketchEdgeExists(start, end) {
@@ -188,13 +199,13 @@ function addSketchPoint(point, axis = null) {
     : axis !== null
       ? `Segmento bloccato su asse ${['X', 'Y', 'Z'][axis]}. `
       : '';
-  ui.sketchInfo.textContent = `${sketchEdges.length} linee, ${sketchFaces.length} facce. ${lockText}Usa Nuova linea per ripartire da un altro punto.`;
+  ui.sketchInfo.textContent = `${sketchEdges.length} guide, ${sketchFaces.length} facce. ${lockText}Usa Nuova linea per ripartire da un altro punto.`;
   drawSketchPreview();
   setStatus(committed.faces
     ? `${committed.faces} faccia chiusa creata in bozza.`
     : committed.duplicate
-      ? 'Linea gia presente: riparto dal punto scelto.'
-      : 'Linea aggiunta alla bozza.');
+      ? 'Guida gia presente: riparto dal punto scelto.'
+      : 'Guida aggiunta alla scena.');
 }
 
 function isAutoSketchPlane() {

@@ -368,9 +368,9 @@
 
         <form id="sketch-form" class="tool-form primitive-form" hidden>
           <div class="hole-readout">
-            <span>Sagoma</span>
-            <strong id="sketch-info">Clicca punti, vertici e punti medi per creare spigoli e facce.</strong>
-            <small>Auto 3D aggancia i punti reali anche su piani diversi. Usa XY, XZ o YZ solo quando vuoi vincolare una sagoma piatta.</small>
+            <span>Guide</span>
+            <strong id="sketch-info">Clicca punti, vertici e punti medi per creare linee guida e facce.</strong>
+            <small>Le linee sono elementi di costruzione: gli altri strumenti possono agganciarsi a estremi, midpoint e segmenti.</small>
           </div>
           <label for="sketch-plane">Piano disegno</label>
           <select id="sketch-plane">
@@ -382,7 +382,7 @@
           <div class="toggle-row single">
             <label><input id="sketch-inference" type="checkbox" checked /> Aggancia assi e parallele</label>
           </div>
-          <small>Le linee restano visibili. Quando chiudono un contorno, la faccia appare in verde e puoi applicarla al modello.</small>
+          <small>Auto 3D aggancia i punti reali anche su piani diversi. Quando le guide chiudono un contorno, la faccia appare in verde.</small>
           <button id="apply-sketch" type="button" class="action-button" disabled>Applica facce</button>
           <button id="new-sketch-line" type="button" class="secondary-button">Nuova linea</button>
           <button id="reset-sketch" type="button" class="secondary-button">Ricomincia</button>
