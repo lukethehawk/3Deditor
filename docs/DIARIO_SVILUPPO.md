@@ -203,14 +203,23 @@ sulla triangolazione STL senza cercare di ricostruire un solido CAD:
   piu' coerenti le normali;
 - prova a orientare verso l'esterno ogni componente chiusa usando il volume
   firmato;
+- planarizza in modo conservativo i vertici molto vicini a superfici grandi e
+  quasi piane (`planarizeNearlyCoplanarVertices()`), utile dopo booleane che
+  lasciano micro-triangoli leggermente fuori piano;
+- dopo la planarizzazione ripulisce di nuovo eventuali triangoli diventati
+  degeneri o duplicati;
 - restituisce un report con triangoli prima/dopo, vertici saldati, triangoli
-  rimossi, componenti, bordi aperti e spigoli non-manifold.
+  rimossi, vertici planarizzati, componenti, bordi aperti e spigoli
+  non-manifold.
 
 Questa riparazione e' conservativa: non chiude automaticamente buchi e non
 inventa superfici mancanti. Se il report indica bordi aperti o spigoli
 non-manifold, la mesh resta problematica per alcune booleane. La chiusura buchi
 dovra' essere una funzione separata, idealmente con anteprima o conferma, per
 non tappare aperture volutamente presenti nel pezzo.
+La planarizzazione usa una tolleranza piccola e corregge solo vertici gia'
+molto vicini a un piano dominante: non deve trasformare smussi, superfici curve
+o inclinazioni volute in facce piatte.
 
 La UI mostra un overlay modale durante il calcolo, applica la mesh riparata con
 undo disponibile, aggiorna snap point, bordi visibili e normali tramite

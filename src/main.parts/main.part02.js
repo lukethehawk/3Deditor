@@ -260,6 +260,7 @@ function formatRepairReport(report) {
     `${report.removedDegenerateTriangles} triangoli degeneri rimossi`,
     `${report.removedDuplicateTriangles} duplicati rimossi`,
     `${report.flippedTriangles} triangoli riorientati`,
+    `${report.planarizedVertices ?? 0} vertici planarizzati`,
   ].join(', ');
   const topology = [];
   if (report.boundaryEdges) topology.push(`${report.boundaryEdges} bordi aperti restano`);
@@ -274,7 +275,7 @@ async function repairCurrentMesh() {
     return;
   }
 
-  showBusy('Riparazione mesh...', 'Saldo vertici vicini, rimuovo triangoli difettosi e riallineo le normali.');
+  showBusy('Riparazione mesh...', 'Saldo vertici vicini, rimuovo triangoli difettosi e rendo planari le facce quasi piatte.');
   await waitForNextFrame();
   await waitForNextFrame();
 

@@ -131,6 +131,33 @@ test('repairMeshGeometry welds coincident vertices and removes invalid triangles
   assert.equal(triangleCount(repaired.geometry), 1);
 });
 
+test('repairMeshGeometry planarizes vertices near large flat faces', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0,
+    10, 0, 0,
+    10, 10, 0,
+    0, 0, 0,
+    10, 10, 0,
+    0, 10, 0,
+    2, 2, 0.03,
+    4, 2, 0,
+    2, 4, 0,
+  ], 3));
+
+  const repaired = repairMeshGeometry(geometry, { tolerance: 0.001, planarizeTolerance: 0.05 });
+  const position = repaired.geometry.getAttribute('position');
+  const point = new THREE.Vector3();
+  let maxZ = 0;
+  for (let index = 0; index < position.count; index += 1) {
+    point.fromBufferAttribute(position, index);
+    maxZ = Math.max(maxZ, Math.abs(point.z));
+  }
+
+  assert.ok(repaired.report.planarizedVertices >= 1);
+  assert.ok(maxZ < 1e-8);
+});
+
 test('repairMeshGeometry reports open boundary edges', () => {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute([

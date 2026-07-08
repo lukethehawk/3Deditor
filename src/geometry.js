@@ -141,6 +141,92 @@ function orientTrianglesConsistently(points, triangles) {
   };
 }
 
+function normalizePlaneNormal(normal) {
+  const result = normal.clone().normalize();
+  const components = [result.x, result.y, result.z];
+  const dominant = components
+    .map((value) => Math.abs(value))
+    .indexOf(Math.max(...components.map((value) => Math.abs(value))));
+  if (components[dominant] < 0) result.negate();
+  return result;
+}
+
+function triangleNormalFromPoints(points, triangle, target = new THREE.Vector3()) {
+  return target
+    .subVectors(points[triangle[1]], points[triangle[0]])
+    .cross(new THREE.Vector3().subVectors(points[triangle[2]], points[triangle[0]]))
+    .normalize();
+}
+
+function planarizeNearlyCoplanarVertices(points, triangles, options = {}) {
+  const planarizeTolerance = Math.max(options.planarizeTolerance ?? 0.05, 0);
+  if (planarizeTolerance <= 0) return 0;
+
+  const normalStep = Math.max(options.planarNormalStep ?? 0.002, 1e-6);
+  const distanceStep = Math.max(options.planarDistanceStep ?? planarizeTolerance, 1e-8);
+  const minTriangles = Math.max(options.minPlanarTriangles ?? 2, 1);
+  const minArea = Math.max(options.minPlanarArea ?? 1, 0);
+  const planes = new Map();
+
+  for (const triangle of triangles) {
+    const normal = normalizePlaneNormal(triangleNormalFromPoints(points, triangle));
+    if (normal.lengthSq() < 1e-8) continue;
+    const distance = normal.dot(points[triangle[0]]);
+    const area = Math.sqrt(triangleAreaSquared(points, triangle[0], triangle[1], triangle[2]));
+    if (!(area > 0)) continue;
+
+    const key = [
+      Math.round(normal.x / normalStep),
+      Math.round(normal.y / normalStep),
+      Math.round(normal.z / normalStep),
+      Math.round(distance / distanceStep),
+    ].join(':');
+    if (!planes.has(key)) {
+      planes.set(key, {
+        area: 0,
+        distanceSum: 0,
+        normalSum: new THREE.Vector3(),
+        triangles: 0,
+      });
+    }
+    const plane = planes.get(key);
+    plane.area += area;
+    plane.distanceSum += distance * area;
+    plane.normalSum.addScaledVector(normal, area);
+    plane.triangles += 1;
+  }
+
+  const candidates = [...planes.values()]
+    .filter((plane) => plane.triangles >= minTriangles && plane.area >= minArea && plane.normalSum.lengthSq() > 1e-8)
+    .map((plane) => {
+      const normal = plane.normalSum.normalize();
+      return {
+        area: plane.area,
+        distance: plane.distanceSum / plane.area,
+        normal,
+      };
+    })
+    .sort((a, b) => b.area - a.area);
+
+  let planarizedVertices = 0;
+  for (const point of points) {
+    let best = null;
+    for (const plane of candidates) {
+      const signedDistance = plane.normal.dot(point) - plane.distance;
+      const distance = Math.abs(signedDistance);
+      if (distance > planarizeTolerance) continue;
+      if (!best || distance < best.distance) {
+        best = { plane, signedDistance, distance };
+      }
+    }
+    if (!best || best.distance <= 1e-8) continue;
+    point.addScaledVector(best.plane.normal, -best.signedDistance);
+    planarizedVertices += 1;
+  }
+
+  return planarizedVertices;
+}
+
 export function repairMeshGeometry(geometry, options = {}) {
   const position = geometry.getAttribute('position');
   if (!position) return null;
@@ -215,6 +301,35 @@ export function repairMeshGeometry(geometry, options = {}) {
 
   if (!triangles.length) return null;
 
+  const planarizedVertices = options.planarize === false
+    ? 0
+    : planarizeNearlyCoplanarVertices(points, triangles, options);
+  if (planarizedVertices) {
+    const cleanedTriangles = [];
+    const seenAfterPlanarize = new Set();
+    for (const triangle of triangles) {
+      const keys = triangle.map((vertex) => pointKey(points[vertex], tolerance));
+      if (
+        keys[0] === keys[1] ||
+        keys[1] === keys[2] ||
+        keys[2] === keys[0] ||
+        triangleAreaSquared(points, triangle[0], triangle[1], triangle[2]) <= areaTolerance
+      ) {
+        removedDegenerateTriangles += 1;
+        continue;
+      }
+      const sortedKey = [...keys].sort().join('|');
+      if (seenAfterPlanarize.has(sortedKey)) {
+        removedDuplicateTriangles += 1;
+        continue;
+      }
+      seenAfterPlanarize.add(sortedKey);
+      cleanedTriangles.push(triangle);
+    }
+    triangles.length = 0;
+    triangles.push(...cleanedTriangles);
+  }
+  if (!triangles.length) return null;
   const topology = orientTrianglesConsistently(points, triangles);
   const positions = [];
   for (const point of points) {
@@ -242,6 +357,7 @@ export function repairMeshGeometry(geometry, options = {}) {
       nonManifoldEdges: topology.nonManifoldEdges,
       removedDegenerateTriangles,
       removedDuplicateTriangles,
+      planarizedVertices,
       trianglesAfter: triangles.length,
       trianglesBefore,
       verticesAfter: points.length,
