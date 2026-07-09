@@ -1,168 +1,369 @@
+<div align="center">
+
 # Forma 3D
 
-Editor STL locale e web con un flusso di lavoro ispirato a SketchUp, pensato
-per piccole modifiche a modelli da stampa 3D senza caricare file su servizi
-esterni.
+**A local and web STL editor inspired by SketchUp workflows.**
 
-Prima di fare nuove modifiche al codice, leggere anche
-[`docs/DIARIO_SVILUPPO.md`](docs/DIARIO_SVILUPPO.md): contiene architettura,
-logiche geometriche, limiti noti, decisioni tecniche e possibili evoluzioni.
+[![App](https://img.shields.io/badge/Open-Web_App-1f83bd?style=for-the-badge)](https://lukethehawk.github.io/3Deditor/)
+[![Wiki](https://img.shields.io/badge/Open-Wiki-2e9a52?style=for-the-badge)](https://github.com/lukethehawk/3Deditor/wiki)
+[![Docs](https://img.shields.io/badge/Read-Development_Diary-e46f2b?style=for-the-badge)](docs/DIARIO_SVILUPPO.md)
 
-## Avvio locale
+![Three.js](https://img.shields.io/badge/Three.js-3D-black?logo=three.js)
+![Vite](https://img.shields.io/badge/Vite-build-646cff?logo=vite&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-desktop-47848f?logo=electron&logoColor=white)
+![STL](https://img.shields.io/badge/STL-mesh_editor-6f7a80)
 
-Su Windows:
+### Language
+
+[![English](https://img.shields.io/badge/%F0%9F%87%AC%F0%9F%87%A7-English-1f83bd?style=flat-square)](#english)
+[![Italiano](https://img.shields.io/badge/%F0%9F%87%AE%F0%9F%87%B9-Italiano-e46f2b?style=flat-square)](#italiano)
+
+</div>
+
+---
+
+<a id="english"></a>
+
+## English
+
+Forma 3D is an STL editor for small 3D-printing model edits. It runs locally as
+an Electron app and also as a GitHub Pages web app. Files are handled in the
+browser/app: the workflow is designed around direct mesh editing, not uploading
+models to external services.
+
+> Before changing code, read the [development diary](docs/DIARIO_SVILUPPO.md).
+> It documents architecture, mesh logic, known limits and design decisions.
+
+### Try It
+
+- Web app: https://lukethehawk.github.io/3Deditor/
+- Wiki: https://github.com/lukethehawk/3Deditor/wiki
+
+### Local Start
+
+Windows shortcut:
 
 ```text
 Avvia Forma 3D.bat
 ```
 
-Da una cartella clonata da GitHub:
+From a cloned repository:
 
 ```bash
 npm install
 npm start
 ```
 
-Per sviluppo web:
+Web development:
 
 ```bash
 npm run dev
 ```
 
-Per verificare prima di committare:
+Validation:
 
 ```bash
 npm test
 npm run build
 ```
 
-## Versione web su GitHub Pages
+### Core Workflow
 
-La pagina pubblica deve servire il build Vite, non i file sorgenti della root.
-Il workflow `.github/workflows/pages.yml` esegue `npm ci`, `npm test`,
-`npm run build` e pubblica la cartella `dist` su GitHub Pages.
+| Action | Use |
+| --- | --- |
+| Single click in `Select` | Select a planar face |
+| Double click in `Select` or `Transform` | Select the clicked connected body |
+| `Push/Pull` | Extrude or recess selected planar faces |
+| `Transform` | Move, rotate or scale only the selected body |
+| `Repair mesh` | Weld vertices, remove bad triangles and planarize near-flat areas |
+| `Export STL` | Download the edited STL |
 
-Se GitHub Pages mostra HTML senza stile o senza scena 3D, nelle impostazioni del
-repository verificare che Pages usi **GitHub Actions** come sorgente di deploy.
+### Shortcuts
 
-URL pubblico:
+| Key | Tool |
+| --- | --- |
+| `Space` | Select |
+| `P` | Push/Pull |
+| `B` | Box |
+| `C` | Cylinder |
+| `V` | Cone |
+| `I` | Pyramid |
+| `K` | Gear |
+| `A` | 3D Text |
+| `T` | Subtract |
+| `H` | Hole |
+| `F` | Move hole |
+| `L` | Line guides |
+| `N` | 2D Planes |
+| `M` | Measure |
+| `G` | Transform |
+| `O` | Orbit |
+| `Delete` | Delete active preview, guide, face or selected body |
+| `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+
+Navigation:
+
+- Middle mouse drag: orbit.
+- Mouse wheel: zoom.
+- Right mouse drag: pan.
+
+### Tools
+
+<details open>
+<summary><strong>Select, Push/Pull and Transform</strong></summary>
+
+- `Select`: single click selects a face; double click selects the clicked body.
+- `Push/Pull`: works on selected planar faces. New 2D planes are automatically
+  selected as faces so they can be pushed/pulled immediately.
+- `Transform`: automatically switches to Object mode and edits only the selected
+  connected body.
+
+</details>
+
+<details>
+<summary><strong>Solids</strong></summary>
+
+The `Solids` menu contains:
+
+- Box
+- Cylinder
+- Cone
+- Pyramid
+- Gear
+- 3D Text
+
+Gears are added as separate STL bodies without heavy booleans, with an 80-tooth
+limit to keep the browser responsive.
+
+</details>
+
+<details>
+<summary><strong>Booleans</strong></summary>
+
+The `Booleans` menu contains:
+
+- Subtract
+- Hole
+- Move hole
+
+Boolean operations work best on closed and reasonably clean meshes.
+
+</details>
+
+<details>
+<summary><strong>2D and construction</strong></summary>
+
+The `2D` menu contains:
+
+- Line guides
+- Flat planes: rectangle, square and circle
+
+Line guides persist as construction geometry and can create closed faces.
+
+</details>
+
+### Repository Map
+
+| Path | Purpose |
+| --- | --- |
+| `index.html` | UI markup |
+| `src/style.css` | Layout and visual design |
+| `src/main.parts/*.js` | Main controller source |
+| `src/main.js` | Generated file, do not edit manually |
+| `src/geometry.js` | Mesh selection, repair, push/pull and geometry helpers |
+| `src/primitives.js` | Solid primitives, text, planes and gears |
+| `src/snapping.js` | Grid, point, axis and inference snapping |
+| `src/measurement.js` | Measurement logic |
+| `src/hole-detection.js` | Cylindrical hole detection |
+| `test/*.test.js` | Unit tests |
+| `docs/DIARIO_SVILUPPO.md` | Technical development diary |
+
+### GitHub Pages
+
+GitHub Pages must serve the Vite build output, not the repository root. The
+workflow in `.github/workflows/pages.yml` runs tests, builds the app and
+publishes `dist`.
+
+If the public page appears unstyled or without the 3D scene, check that GitHub
+Pages is configured to deploy from **GitHub Actions**.
+
+### Current Limits
+
+Forma 3D edits STL meshes. STL has no CAD history, constraints or parametric
+features. Some operations create separate bodies inside the same STL; slicers
+usually handle them, but this is not always the same as a perfect CSG union.
+
+---
+
+<a id="italiano"></a>
+
+## Italiano
+
+Forma 3D e' un editor STL per piccole modifiche a modelli destinati alla stampa
+3D. Funziona come app desktop Electron e anche come app web su GitHub Pages. I
+file vengono gestiti localmente nel browser/app: il flusso e' pensato per
+modifiche dirette su mesh, non per caricare modelli su servizi esterni.
+
+> Prima di modificare codice, leggere il
+> [diario di sviluppo](docs/DIARIO_SVILUPPO.md). Contiene architettura, logiche
+> mesh, limiti noti e decisioni tecniche.
+
+### Prova l'app
+
+- App web: https://lukethehawk.github.io/3Deditor/
+- Wiki: https://github.com/lukethehawk/3Deditor/wiki
+
+### Avvio locale
+
+Scorciatoia Windows:
 
 ```text
-https://lukethehawk.github.io/3Deditor/
+Avvia Forma 3D.bat
 ```
 
-## Comandi e navigazione
-
-- Click sinistro in `Select`: seleziona una faccia.
-- Doppio click in `Select` o `Transform`: seleziona il corpo cliccato.
-- `Spazio`: selezione.
-- `P`: Push/Pull.
-- `B`: box.
-- `C`: cilindro.
-- `V`: cono.
-- `I`: piramide.
-- `K`: ingranaggio.
-- `A`: testo 3D.
-- `T`: sottrai figura di taglio.
-- `H`: foro.
-- `F`: sposta foro.
-- `L`: linee/guide 2D-3D.
-- `N`: piani 2D piatti.
-- `M`: misura.
-- `G`: trasforma corpo selezionato.
-- `O`: orbita.
-- Rotellina premuta: orbita.
-- Rotellina: zoom.
-- Tasto destro: panoramica.
-- `Ctrl+Z` / `Ctrl+Y`: annulla / ripristina.
-- `Canc`: cancella anteprima attiva, guida corrente, faccia o corpo selezionato.
-
-Il menu `Options` contiene lingua, guida rapida, riparazione mesh ed esportazione
-STL. Inglese è la lingua primaria; italiano è selezionabile dal menu.
-
-## Strumenti principali
-
-### Select
-
-Il click singolo seleziona una faccia complanare. Il doppio click seleziona solo
-il corpo connesso cliccato, anche quando più oggetti sono contenuti nello stesso
-STL. La selezione è evidenziata con overlay blu marcati.
-
-### Push/Pull
-
-Lavora su facce piane selezionate. I piani 2D appena creati vengono selezionati
-automaticamente come facce, così si può passare subito a Push/Pull per dare
-volume.
-
-### Solids
-
-Il menu `Solids` contiene box, cilindro, cono, piramide, ingranaggio e testo 3D.
-Le primitive usano anteprima, offset numerici e asse su faccia/X/Y/Z dove
-applicabile.
-
-L'ingranaggio viene aggiunto come corpo separato, senza booleane pesanti, per
-evitare blocchi del browser. Ha limite di 80 denti e controlli su modulo,
-spessore, foro centrale, mozzo, gioco e qualità.
-
-### Booleans
-
-Il menu `Booleans` contiene sottrai, foro e sposta foro. Le operazioni booleane
-richiedono mesh sufficientemente chiuse e pulite.
-
-### 2D
-
-Il menu `2D` contiene linee e piani. Le linee sono guide persistenti e possono
-creare facce chiuse; i piani creano rettangoli, quadrati o cerchi piatti
-estrudibili con Push/Pull.
-
-### Transform
-
-Trasforma solo il corpo selezionato. Entrando nello strumento, la modalità
-selezione passa automaticamente a Object; se era selezionata una faccia, viene
-convertita nel corpo connesso. Spostamento, rotazione e scala hanno anteprima
-wireframe e vengono applicati direttamente ai vertici STL.
-
-### Text 3D
-
-Permette testo estruso con font open inclusi in Three.js, bold, corsivo simulato,
-altezza, profondità, larghezza lettere, smusso, rotazione e offset. Il testo può
-essere aggiunto come rilievo o sottratto per incisione.
-
-### Measure
-
-Mostra distanza diretta e componenti firmate sugli assi X, Y e Z.
-
-### Repair mesh
-
-Salda vertici vicini, rimuove triangoli degeneri/duplicati, riorienta triangoli
-quando possibile e planarizza in modo conservativo superfici quasi piatte. Non
-chiude automaticamente buchi né trasforma una mesh STL in un solido CAD.
-
-## Architettura rapida
-
-- `index.html`: interfaccia.
-- `src/style.css`: layout e stile.
-- `src/main.parts/*.js`: controller principale diviso in parti.
-- `src/main.js`: file generato, non modificare a mano.
-- `src/geometry.js`: logiche mesh, selezione, riparazione, push/pull.
-- `src/primitives.js`: primitive solide, piani, testo e ingranaggi.
-- `src/snapping.js`: snap a griglia, punti, assi e inferenze.
-- `src/measurement.js`: misure.
-- `src/hole-detection.js`: riconoscimento fori cilindrici.
-- `test/*.test.js`: test unitari.
-
-`src/main.js` viene rigenerato da:
+Da repository clonato:
 
 ```bash
+npm install
+npm start
+```
+
+Sviluppo web:
+
+```bash
+npm run dev
+```
+
+Verifiche:
+
+```bash
+npm test
 npm run build
 ```
 
-oppure dai comandi `dev` e `start`.
+### Flusso principale
 
-## Limiti del prototipo
+| Azione | Uso |
+| --- | --- |
+| Click singolo in `Select` | Seleziona una faccia piana |
+| Doppio click in `Select` o `Transform` | Seleziona il corpo connesso cliccato |
+| `Push/Pull` | Estrude o incide facce piane selezionate |
+| `Transform` | Sposta, ruota o scala solo il corpo selezionato |
+| `Repair mesh` | Salda vertici, rimuove triangoli difettosi e planarizza aree quasi piatte |
+| `Export STL` | Scarica lo STL modificato |
 
-Forma 3D lavora su STL, quindi su mesh triangolari senza cronologia CAD,
-vincoli o feature parametriche. Le booleane possono fallire su mesh aperte,
-sporche o non manifold. Alcune operazioni producono corpi separati nello stesso
-STL; molti slicer li gestiscono correttamente, ma non equivalgono sempre a una
-unione CSG perfetta.
+### Scorciatoie
+
+| Tasto | Strumento |
+| --- | --- |
+| `Spazio` | Select |
+| `P` | Push/Pull |
+| `B` | Box |
+| `C` | Cilindro |
+| `V` | Cono |
+| `I` | Piramide |
+| `K` | Ingranaggio |
+| `A` | Testo 3D |
+| `T` | Sottrai |
+| `H` | Foro |
+| `F` | Sposta foro |
+| `L` | Linee guida |
+| `N` | Piani 2D |
+| `M` | Misura |
+| `G` | Trasforma |
+| `O` | Orbita |
+| `Canc` | Cancella anteprima, guida, faccia o corpo selezionato |
+| `Ctrl+Z` / `Ctrl+Y` | Annulla / ripristina |
+
+Navigazione:
+
+- Rotellina premuta: orbita.
+- Rotellina: zoom.
+- Tasto destro: panoramica.
+
+### Strumenti
+
+<details open>
+<summary><strong>Select, Push/Pull e Transform</strong></summary>
+
+- `Select`: click singolo seleziona una faccia; doppio click seleziona il corpo
+  cliccato.
+- `Push/Pull`: lavora su facce piane selezionate. I nuovi piani 2D vengono
+  selezionati automaticamente come facce.
+- `Transform`: passa automaticamente a Object mode e modifica solo il corpo
+  connesso selezionato.
+
+</details>
+
+<details>
+<summary><strong>Solids</strong></summary>
+
+Il menu `Solids` contiene:
+
+- Box
+- Cilindro
+- Cono
+- Piramide
+- Ingranaggio
+- Testo 3D
+
+Gli ingranaggi vengono aggiunti come corpi STL separati senza booleane pesanti,
+con limite a 80 denti per mantenere il browser reattivo.
+
+</details>
+
+<details>
+<summary><strong>Booleans</strong></summary>
+
+Il menu `Booleans` contiene:
+
+- Sottrai
+- Foro
+- Sposta foro
+
+Le booleane funzionano meglio su mesh chiuse e abbastanza pulite.
+
+</details>
+
+<details>
+<summary><strong>2D e costruzione</strong></summary>
+
+Il menu `2D` contiene:
+
+- Linee guida
+- Piani piatti: rettangolo, quadrato e cerchio
+
+Le linee restano come guide di costruzione e possono creare facce chiuse.
+
+</details>
+
+### Mappa repository
+
+| Percorso | Scopo |
+| --- | --- |
+| `index.html` | Markup UI |
+| `src/style.css` | Layout e stile |
+| `src/main.parts/*.js` | Sorgente del controller principale |
+| `src/main.js` | File generato, non modificare a mano |
+| `src/geometry.js` | Selezione mesh, riparazione, push/pull e helper geometrici |
+| `src/primitives.js` | Primitive solide, testo, piani e ingranaggi |
+| `src/snapping.js` | Snap a griglia, punti, assi e inferenze |
+| `src/measurement.js` | Logica misure |
+| `src/hole-detection.js` | Riconoscimento fori cilindrici |
+| `test/*.test.js` | Test unitari |
+| `docs/DIARIO_SVILUPPO.md` | Diario tecnico di sviluppo |
+
+### GitHub Pages
+
+GitHub Pages deve servire il build Vite, non la root del repository. Il workflow
+in `.github/workflows/pages.yml` esegue test, build e pubblica `dist`.
+
+Se la pagina pubblica appare senza stile o senza scena 3D, controllare che
+GitHub Pages usi **GitHub Actions** come sorgente di deploy.
+
+### Limiti attuali
+
+Forma 3D modifica mesh STL. STL non contiene cronologia CAD, vincoli o feature
+parametriche. Alcune operazioni creano corpi separati nello stesso STL; molti
+slicer li gestiscono correttamente, ma non sempre equivalgono a una unione CSG
+perfetta.
