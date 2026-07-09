@@ -1,10 +1,41 @@
 # Diario di sviluppo - Forma 3D
 
-Ultimo aggiornamento: 2026-07-07
+Ultimo aggiornamento: 2026-07-09
 
 Questo file e' la memoria tecnica del progetto. Prima di fare nuove modifiche
 conviene leggerlo insieme a `README.md`, per ricordare perche certe scelte sono
 state fatte e dove intervenire senza rompere il flusso esistente.
+
+## Aggiornamento operativo 2026-07-09
+
+Le ultime sessioni hanno consolidato l'app come editor STL con strumenti
+separati per facce e corpi connessi. I punti piu importanti da ricordare prima
+di intervenire ancora:
+
+- la lingua primaria e' inglese, con italiano selezionabile dal menu `Options`;
+- il menu `Options` contiene lingua, guida rapida, `Repair mesh` ed
+  esportazione STL;
+- `Select` usa click singolo per selezionare una faccia e doppio click per
+  selezionare il corpo connesso cliccato;
+- la selezione oggetto non prende piu' tutta la mesh STL: usa
+  `findConnectedComponent()` sul triangolo cliccato e seleziona solo l'isola di
+  triangoli collegata;
+- `Delete` su un oggetto rimuove solo quel corpo, non tutto il modello;
+- `Transform` passa automaticamente a modalita oggetto e agisce solo sul corpo
+  selezionato. Se prima era selezionata una faccia, la selezione viene convertita
+  nel corpo connesso;
+- i piani 2D appena applicati vengono selezionati subito come facce, per
+  favorire `Push/Pull`;
+- le selezioni sono piu visibili: facce con overlay blu piu saturo e wireframe,
+  oggetti con box evidenziato, spigoli spessi e marker sugli angoli;
+- `fitView()` usa il FOV della camera e un margine piu ampio, cosi il primo
+  oggetto creato resta centrato e non troppo zoomato;
+- l'ingranaggio e' stato reso sicuro per il browser: non usa piu booleane
+  pesanti, viene aggiunto come corpo separato, ha limite a 80 denti e preview
+  debounced.
+
+Regola di lavoro concordata: dopo una modifica completa, se `npm test` e
+`npm run build` passano, fare commit e push su GitHub salvo richiesta contraria.
 
 ## Obiettivo del progetto
 
@@ -17,16 +48,19 @@ il file come mesh triangolare e offre strumenti pratici:
 - importazione ed esportazione STL;
 - vista 3D con orbita, pan, zoom e viste rapide;
 - selezione di superfici piane riconosciute come regioni complanari;
+- selezione di corpi connessi tramite doppio click;
 - Spingi/Tira su regioni piane;
 - foro cilindrico con anteprima e offset numerici;
 - riconoscimento e spostamento di fori cilindrici semplici;
-- primitive booleane: box, cilindro, sottrazione;
+- primitive solide: box, cilindro, cono, piramide, ingranaggio e testo 3D;
+- operazioni booleane: foro, sposta foro, sottrazione e incisione testo;
+- piani 2D rettangolari, quadrati o tondi, estrudibili con Spingi/Tira;
 - strumento Linea per sagome chiuse estrudibili;
 - strumento Testo 3D con font, profondita, larghezza lettere ed effetti;
 - misura tra punti con componenti X, Y, Z;
 - annulla/ripristina;
 - rimozione del modello corrente;
-- cancellazione con `Canc` di superfici selezionate o anteprime attive.
+- cancellazione con `Canc` di superfici, corpi selezionati o anteprime attive.
 
 ## Stack tecnico
 
@@ -113,14 +147,17 @@ La topbar mantiene `Apri STL` e `Rimuovi modello` come azioni primarie. Il menu
 `Opzioni`, ultimo tasto a destra, contiene:
 
 - selezione lingua `Italiano` / `English`;
+- tooltip di guida rapida con click, doppio click, `Canc`, orbita e pan;
 - `Ripara mesh`;
 - `Esporta STL`.
 
-La lingua viene salvata in `localStorage` (`forma3d-language`). La funzione
-`applyLanguage(language)` aggiorna i testi statici principali tramite una
-tabella estendibile (`staticTranslations`) e i nomi tool/topbar tramite
-`languageText`. I messaggi dinamici profondi restano in gran parte in italiano:
-la struttura e' predisposta per portarli progressivamente nella stessa tabella.
+La lingua primaria e' inglese. La lingua selezionata viene salvata in
+`localStorage` (`forma3d-language`). La funzione `applyLanguage(language)`
+aggiorna i testi statici principali tramite una tabella estendibile
+(`staticTranslations`) e i nomi tool/topbar tramite `languageText`. I messaggi
+dinamici introdotti di recente sono stati aggiunti alla tabella in inglese; se
+si aggiungono nuove frasi UI, vanno registrate subito per evitare schermate
+miste italiano/inglese.
 
 ## Pubblicazione web su GitHub Pages
 
@@ -154,8 +191,10 @@ Il controller principale usa variabili di stato semplici:
 
 - `model`: mesh Three.js principale caricata o creata.
 - `edges`: bordi visuali calcolati da `createDisplayEdgesGeometry()`.
-- `highlight`: overlay blu della superficie selezionata.
-- `selected`: regione complanare selezionata, con normale e triangoli.
+- `highlight`: overlay blu della faccia o del corpo selezionato.
+- `selected`: selezione corrente. Puo' essere `{ type: 'face', point, normal,
+  region }` per una regione complanare, oppure `{ type: 'object', point,
+  triangles }` per un corpo connesso.
 - `activeTool`: strumento attivo.
 - `currentFileName`: nome usato per esportare.
 - `undoStack` / `redoStack`: cloni di geometrie per annulla/ripristina.
@@ -164,6 +203,15 @@ Il controller principale usa variabili di stato semplici:
   `cylinderPlacement`, `conePlacement`, `pyramidPlacement`, `planePlacement`,
   `gearPlacement`, `cutPlacement`, `textPlacement`, `sketchPoints`,
   `measurementStart`.
+
+La modalita selezione viene salvata in `selectionMode` e sincronizzata con il
+select dell'inspector. Le transizioni automatiche sono importanti:
+
+- click singolo nello strumento `Select` forza selezione faccia;
+- doppio click forza selezione oggetto;
+- entrando in `Transform`, la modalita passa a oggetto;
+- dopo l'applicazione di un piano 2D, la modalita torna a faccia e seleziona la
+  faccia appena creata.
 
 La scena contiene oggetti permanenti (griglia, luci, modello, edges) e overlay
 temporanei. Gli overlay vengono marcati con `userData.transientOverlay` e
@@ -174,6 +222,11 @@ rimossi da `clearTransientOverlays()`.
 La scena ha asse Z verso l'alto (`camera.up.set(0, 0, 1)`). La griglia Three.js
 viene ruotata per rappresentare il piano XY. La camera usa `PerspectiveCamera`
 con FOV 38 e viene riposizionata da `fitView()`.
+
+`fitView()` calcola la distanza dal modello usando bounding box, FOV verticale,
+FOV orizzontale e un margine di sicurezza. Questo evita che il primo oggetto
+creato venga inquadrato troppo da vicino: il modello resta centrato e leggibile
+nel viewport, con una distanza minima di sicurezza anche per oggetti piccoli.
 
 `OrbitControls` e' configurato cosi:
 
@@ -300,14 +353,18 @@ Nota: la storia salva geometria, non metadati completi come nome file o tool
 attivo. Se in futuro serve un undo piu completo, introdurre un oggetto stato con
 `geometry`, `fileName`, `selection`, ecc.
 
-## Selezione superfici
+## Selezione facce e oggetti
 
-`selectAt(clientX, clientY)` fa raycast sulla mesh. Se colpisce:
+`selectAt(clientX, clientY, mode)` fa raycast sulla mesh. Lo strumento
+`Select` usa click singolo per forzare `mode = 'face'`, mentre il doppio click
+chiama direttamente `selectObjectAt()`.
+
+Se la selezione e' una faccia:
 
 1. prende `faceIndex`;
 2. chiama `findCoplanarRegion(model.geometry, hit.faceIndex)`;
-3. crea un overlay blu con `createRegionGeometry()`;
-4. salva `selected = { point, normal, region }`;
+3. crea un overlay blu con `createFaceSelectionOverlay()`;
+4. salva `selected = { type: 'face', point, normal, region }`;
 5. aggiorna inspector e status.
 
 `findCoplanarRegion()`:
@@ -319,6 +376,20 @@ attivo. Se in futuro serve un undo piu completo, introdurre un oggetto stato con
 
 Questa logica serve a far percepire come unica faccia una superficie STL fatta
 da molti triangoli.
+
+Se la selezione e' un oggetto:
+
+1. `selectObjectAt()` prende il triangolo cliccato;
+2. `findConnectedComponent()` visita i triangoli collegati da spigoli condivisi;
+3. `selectionBoxFromTriangles()` calcola il box del solo corpo connesso;
+4. `createSelectionBoxOverlay()` crea un box blu visibile, con spigoli spessi e
+   marker sugli angoli;
+5. salva `selected = { type: 'object', point, triangles }`.
+
+Questa logica e' fondamentale per oggetti aggiunti come corpi separati nello
+stesso STL, per esempio ingranaggi o testo/primitive accodate senza booleana.
+Prima la modalita oggetto selezionava tutto `model`; ora seleziona solo l'isola
+di triangoli cliccata.
 
 ## Spingi/Tira
 
@@ -358,10 +429,12 @@ Ordine di comportamento:
 
 1. se c'e' uno strumento con anteprima/stato temporaneo, lo cancella;
 2. altrimenti, se c'e' una superficie selezionata, elimina quei triangoli;
-3. se non c'e' nulla da cancellare, mostra un messaggio di stato.
+3. se c'e' un oggetto selezionato, elimina i triangoli del solo corpo connesso;
+4. se non c'e' nulla da cancellare, mostra un messaggio di stato.
 
-Le superfici si cancellano con `deleteSelectedRegion()`, che chiama
-`deleteTrianglesFromGeometry()`.
+Facce e oggetti si cancellano con `deleteSelectedRegion()`, che chiama
+`deleteTrianglesFromGeometry()`. Per `selected.type === 'object'` viene passata
+la lista dei triangoli del componente connesso, non tutta la mesh.
 
 `deleteTrianglesFromGeometry()`:
 
@@ -453,19 +526,28 @@ ingranaggio, `A` testo 3D.
 
 `Ingranaggio` vive nel menu `Solidi` e segue il flusso delle altre primitive:
 click del centro base, anteprima wireframe, parametri nel pannello, offset e
-applicazione tramite `applyPrimitiveGeometry()`.
+applicazione tramite `appendGeometryToModel()`.
 
 Parametri:
 
-- operazione: somma o sottrazione;
+- modalita: aggiunta come corpo separato;
 - asse: normale della faccia, X, Y, Z;
-- numero denti: 6-200, default 24;
+- numero denti: 6-80, default 24;
 - modulo in millimetri, default 2;
 - spessore, default 8 mm;
 - foro centrale passante, default 5 mm, 0 per ingranaggio pieno;
 - diametro mozzo e altezza mozzo;
 - gioco/backlash semplificato;
 - qualita: bassa, media, alta.
+
+Decisione importante: l'ingranaggio non passa piu da `three-bvh-csg` per somma
+o sottrazione. Le booleane su profili dentati generavano blocchi del browser e
+consumo CPU elevato. Ora la geometria viene accodata come shell/corpo separato
+nello stesso STL. Questo e' molto piu stabile e adatto alla stampa/slicing, ma
+non equivale a una vera unione CAD con rimozione delle facce interne.
+
+La preview e' debounced (`scheduleGearPreview()`), il numero denti e' limitato a
+80 e `gearGeometryFromState()` blocca geometrie sopra `MAX_GEAR_TRIANGLES`.
 
 La geometria e' generata direttamente in `src/primitives.js` senza CSG interna.
 Il profilo parte da:
@@ -508,6 +590,10 @@ Lo strumento `Piani` vive nel menu `2D` e crea una faccia piatta, non un solido:
 - applicazione tramite `combineGeometries()`.
 
 Il piano resta una superficie STL vera. Per dargli volume si usa `Spingi/Tira`.
+Quando il piano viene applicato, `applyPlane()` salva l'indice del primo
+triangolo nuovo, torna a `Select`, forza `selectionMode = 'face'` e seleziona
+subito la regione coplanare del piano appena creato. Questo rende il flusso
+rettangolo/cerchio -> Spingi/Tira immediato.
 Per supportare questo caso, `pushPullGeometry()` riconosce i bordi aperti della
 regione selezionata: sui solidi chiusi continua a spostare i vertici condivisi,
 mentre su una faccia isolata duplica la faccia di partenza e crea le pareti
@@ -672,16 +758,25 @@ La UI mostra linea totale tratteggiata e componenti colorate:
 
 ## Trasforma
 
-Lo strumento `Trasforma` (`G`) agisce sul modello intero con input numerici:
+Lo strumento `Trasforma` (`G`) agisce sul corpo selezionato, non piu' su tutto
+il modello, con input numerici:
 
 - spostamento X/Y/Z in millimetri;
 - rotazione X/Y/Z in gradi;
 - scala uniforme.
 
-La trasformazione viene applicata direttamente ai vertici della `BufferGeometry`
-attorno al centro del modello, poi `setModelGeometry()` ricostruisce snap point,
-bordi e bounding volume. Questo evita di lasciare una trasformazione sulla mesh
-Three.js che potrebbe confondere booleane, raycast o export STL successivi.
+Entrando in `Transform`, `setTool('transform')` forza `selectionMode = 'object'`.
+Se era selezionata una faccia, la selezione viene convertita nel componente
+connesso partendo da un triangolo della regione selezionata. Se non c'e' un
+oggetto selezionato, `transformCurrentModel()` chiede di fare doppio click su un
+corpo prima di applicare valori.
+
+La trasformazione viene applicata direttamente ai vertici del componente
+selezionato tramite `transformTrianglesInGeometry()`, usando il bounding box del
+corpo come centro di rotazione/scala. I triangoli non selezionati vengono copiati
+senza modifiche. Dopo `setModelGeometry()` vengono ricostruiti snap point, bordi
+e bounding volume; non resta alcuna trasformazione pendente sulla mesh Three.js
+che potrebbe confondere booleane, raycast o export STL successivi.
 
 Gli input di Trasforma sono trasformazioni incrementali: una preview wireframe
 blu viene aggiornata in tempo reale tramite la stessa matrice usata da
@@ -747,9 +842,11 @@ Shortcut principali:
 - `N`: piani 2D;
 - `A`: testo 3D;
 - `M`: misura;
-- `G`: trasforma modello;
+- `G`: trasforma corpo selezionato;
 - `O`: orbita;
-- `Canc`: cancella anteprima o superficie selezionata;
+- click singolo in `Select`: seleziona faccia;
+- doppio click in `Select` o `Transform`: seleziona corpo;
+- `Canc`: cancella anteprima, faccia o corpo selezionato;
 - `Ctrl+Z` / `Ctrl+Y`: annulla / ripristina.
 
 ## Problemi noti e limiti
@@ -763,12 +860,13 @@ Shortcut principali:
 - La rilevazione fori e' euristica.
 - Le normali di STL sporchi possono rendere ambigue facce, fori e sottrazioni.
 - Undo/redo salva solo geometrie, non stato UI completo.
+- L'ingranaggio viene aggiunto come corpo separato: e' stabile e stampabile, ma
+  non e' una vera unione/sottrazione CSG del profilo dentato.
 - `src/main.parts` contiene molta logica in un controller grande: nel tempo
   conviene estrarre moduli.
 
 ## Possibili miglioramenti futuri
 
-- Modalita oggetto con selezione dell'intero solido oltre alla selezione faccia.
 - Riempimento buchi dopo cancellazione superficie.
 - Chiusura buchi con anteprima/conferma e scelta della strategia di riempimento.
 - Import/export STEP usando un motore CAD dedicato, se il progetto passa da
