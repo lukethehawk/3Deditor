@@ -669,6 +669,67 @@ export function combineGeometries(geometries) {
   return result;
 }
 
+export function findConnectedComponent(geometry, seedTriangle, tolerance = DEFAULT_TOLERANCE) {
+  const triangleTotal = triangleCount(geometry);
+  if (seedTriangle < 0 || seedTriangle >= triangleTotal) {
+    return {
+      triangles: [],
+    };
+  }
+
+  const edgeMap = new Map();
+  for (let triangle = 0; triangle < triangleTotal; triangle += 1) {
+    const points = [0, 1, 2].map((corner) => vertexAt(geometry, triangle, corner, new THREE.Vector3()));
+    for (const [start, end] of [[0, 1], [1, 2], [2, 0]]) {
+      const key = edgeKey(points[start], points[end], tolerance);
+      if (!edgeMap.has(key)) edgeMap.set(key, []);
+      edgeMap.get(key).push(triangle);
+    }
+  }
+
+  const visited = new Set([seedTriangle]);
+  const queue = [seedTriangle];
+  for (let index = 0; index < queue.length; index += 1) {
+    const triangle = queue[index];
+    const points = [0, 1, 2].map((corner) => vertexAt(geometry, triangle, corner, new THREE.Vector3()));
+    for (const [start, end] of [[0, 1], [1, 2], [2, 0]]) {
+      const key = edgeKey(points[start], points[end], tolerance);
+      for (const neighbor of edgeMap.get(key) ?? []) {
+        if (visited.has(neighbor)) continue;
+        visited.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return {
+    triangles: queue,
+  };
+}
+
+export function transformTrianglesInGeometry(geometry, triangleIndexes, matrix) {
+  const selected = new Set(triangleIndexes);
+  const positions = [];
+  const point = new THREE.Vector3();
+  const triangleTotal = triangleCount(geometry);
+
+  for (let triangle = 0; triangle < triangleTotal; triangle += 1) {
+    const shouldTransform = selected.has(triangle);
+    for (let corner = 0; corner < 3; corner += 1) {
+      vertexAt(geometry, triangle, corner, point);
+      if (shouldTransform) point.applyMatrix4(matrix);
+      positions.push(point.x, point.y, point.z);
+    }
+  }
+
+  const result = new THREE.BufferGeometry();
+  result.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  result.computeVertexNormals();
+  result.computeBoundingBox();
+  result.computeBoundingSphere();
+  return result;
+}
+
 function edgeKey(a, b, tolerance) {
   const keys = [pointKey(a, tolerance), pointKey(b, tolerance)].sort();
   return `${keys[0]}|${keys[1]}`;

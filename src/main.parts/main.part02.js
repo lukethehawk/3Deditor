@@ -319,10 +319,22 @@ function deleteSelectedRegion() {
   }
 
   if (selected.type === 'object') {
-    const removedFileName = currentFileName;
+    const selectedTriangles = selected.triangles ?? [];
+    const removedCount = selectedTriangles.length;
+    if (!removedCount) {
+      setStatus(t("Seleziona l'oggetto da cancellare."));
+      return false;
+    }
     snapshot();
-    clearCurrentModel(t("Oggetto cancellato. Usa Ctrl+Z per ripristinarlo."));
-    currentFileName = removedFileName;
+    const geometry = deleteTrianglesFromGeometry(model.geometry, selectedTriangles);
+    if (!geometry) {
+      clearCurrentModel(t("Oggetto cancellato. Usa Ctrl+Z per ripristinarlo."));
+    } else {
+      setModelGeometry(geometry, false, { preserveSketch: true });
+      setStatus(currentLanguage === 'en'
+        ? `Object deleted: ${removedCount} triangles removed. Use Ctrl+Z to undo.`
+        : `Oggetto cancellato: ${removedCount} triangoli rimossi. Usa Ctrl+Z per annullare.`);
+    }
     updateHistoryButtons();
     return true;
   }
@@ -403,9 +415,8 @@ function transformHasChanges(values) {
   return hasTranslation || hasRotation || hasScale;
 }
 
-function transformMatrixForGeometry(geometry, values) {
-  geometry.computeBoundingBox();
-  const center = geometry.boundingBox.getCenter(new THREE.Vector3());
+function transformMatrixForBox(box, values) {
+  const center = box.getCenter(new THREE.Vector3());
   const matrix = new THREE.Matrix4();
   matrix.multiply(new THREE.Matrix4().makeTranslation(values.translation.x, values.translation.y, values.translation.z));
   matrix.multiply(new THREE.Matrix4().makeTranslation(center.x, center.y, center.z));
@@ -413,6 +424,11 @@ function transformMatrixForGeometry(geometry, values) {
   matrix.multiply(new THREE.Matrix4().makeScale(values.scale, values.scale, values.scale));
   matrix.multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
   return matrix;
+}
+
+function transformMatrixForGeometry(geometry, values) {
+  geometry.computeBoundingBox();
+  return transformMatrixForBox(geometry.boundingBox, values);
 }
 
 function resetTransformInputs() {
@@ -439,11 +455,22 @@ function transformedGeometryFromInputs() {
     return null;
   }
 
-  const geometry = model.geometry.clone();
-  geometry.applyMatrix4(transformMatrixForGeometry(geometry, values));
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
+  let geometry;
+  if (selected?.type === 'object' && selected.triangles?.length) {
+    const box = selectionBoxFromTriangles(model.geometry, selected.triangles);
+    if (!box) return null;
+    geometry = transformTrianglesInGeometry(
+      model.geometry,
+      selected.triangles,
+      transformMatrixForBox(box, values),
+    );
+  } else {
+    geometry = model.geometry.clone();
+    geometry.applyMatrix4(transformMatrixForGeometry(geometry, values));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+  }
   return {
     geometry,
     values,
@@ -678,10 +705,10 @@ function updateInspector() {
   const current = config[activeTool] ?? config.select;
   ui.panelTitle.textContent = t(current.title);
   ui.panelDescription.textContent = activeTool === 'select'
-    ? t('Seleziona una faccia singola o passa a Oggetto per prendere tutto il solido.')
+    ? t('Seleziona una faccia singola o passa a Oggetto per prendere il corpo cliccato.')
     : t(current.description);
   ui.hint.textContent = activeTool === 'select' && selectionMode === 'object'
-    ? t("Modalita oggetto: clicca il solido per selezionarlo tutto.")
+    ? t('Modalita oggetto: clicca un corpo per selezionarlo.')
     : t(current.hint);
   ui.selectForm.hidden = activeTool !== 'select';
   ui.selectionMode.value = selectionMode;
@@ -727,7 +754,7 @@ function setTool(tool) {
   clearSnapIndicator();
   activeTool = tool;
   if (tool === 'measure') clearSelection();
-  if (tool === 'transform') clearSelection();
+  if (tool === 'transform' && selected?.type !== 'object') clearSelection();
   if (tool === 'hole') {
     clearSelection();
     clearHoleCreate();
@@ -793,7 +820,7 @@ function setTool(tool) {
   updateInspector();
   const statusByTool = {
     select: selectionMode === 'object'
-      ? "Modalita oggetto: clicca il solido per selezionarlo tutto."
+      ? 'Modalita oggetto: clicca un corpo per selezionarlo.'
       : 'Modalita faccia: clicca una superficie del modello.',
     pushpull: 'Spingi/Tira: clicca una superficie piana.',
     hole: 'Foro: clicca il centro sulla superficie.',
@@ -1048,6 +1075,16 @@ function vertexFromGeometry(geometry, triangleIndex, corner) {
   return point;
 }
 
+function selectionBoxFromTriangles(geometry, triangles) {
+  const box = new THREE.Box3();
+  for (const triangle of triangles) {
+    for (let corner = 0; corner < 3; corner += 1) {
+      box.expandByPoint(vertexFromGeometry(geometry, triangle, corner));
+    }
+  }
+  return box.isEmpty() ? null : box;
+}
+
 function regionArea(geometry, region) {
   return region.triangles.reduce((sum, triangle) => sum + triangleAreaFromGeometry(geometry, triangle), 0);
 }
@@ -1083,18 +1120,26 @@ function selectObjectAt(clientX, clientY) {
     return;
   }
 
+  const component = findConnectedComponent(model.geometry, hit.faceIndex);
+  const box = selectionBoxFromTriangles(model.geometry, component.triangles);
+  if (!component.triangles.length || !box) {
+    clearSelection();
+    return;
+  }
+
   clearSelection();
   selected = {
     type: 'object',
     point: hit.point.clone(),
+    triangles: component.triangles,
   };
 
-  highlight = new THREE.BoxHelper(model, 0x2c92d5);
+  highlight = new THREE.Box3Helper(box, 0x2c92d5);
   highlight.renderOrder = 3;
   addTransientOverlay(highlight, 'selection');
   ui.selectionLabel.textContent = t('Oggetto selezionato');
-  ui.selectionDetail.textContent = t('Intero solido selezionato. Canc lo rimuove, Trasforma lo modifica.');
-  ui.measureValue.value = `${triangleCount(model.geometry)} ${t('facce')}`;
+  ui.selectionDetail.textContent = t('Corpo selezionato. Canc lo rimuove, Trasforma lo modifica.');
+  ui.measureValue.value = `${component.triangles.length} ${t('facce')}`;
   ui.inspector.classList.add('open');
   setStatus(t('Oggetto selezionato'));
 }

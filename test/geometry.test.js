@@ -7,11 +7,13 @@ import {
   createDisplayEdgesGeometry,
   collectDisplaySnapPoints,
   deleteTrianglesFromGeometry,
+  findConnectedComponent,
   findCoplanarRegion,
   pushPullGeometry,
   regionHasCoplanarSupport,
   regionHasOpenBoundary,
   repairMeshGeometry,
+  transformTrianglesInGeometry,
   triangleCount,
 } from '../src/geometry.js';
 
@@ -134,6 +136,34 @@ test('combineGeometries appends geometry positions without a boolean operation',
   const combined = combineGeometries([first, second]);
   assert.ok(combined);
   assert.equal(triangleCount(combined), triangleCount(first) + triangleCount(second));
+});
+
+test('findConnectedComponent selects only the clicked separate body', () => {
+  const first = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const second = new THREE.BoxGeometry(2, 2, 2).toNonIndexed();
+  second.translate(30, 0, 0);
+  const combined = combineGeometries([first, second]);
+  const firstTriangles = triangleCount(first);
+  const secondComponent = findConnectedComponent(combined, firstTriangles);
+  assert.equal(secondComponent.triangles.length, triangleCount(second));
+  assert.equal(secondComponent.triangles.includes(0), false);
+});
+
+test('transformTrianglesInGeometry moves only selected triangles', () => {
+  const first = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const second = new THREE.BoxGeometry(2, 2, 2).toNonIndexed();
+  second.translate(30, 0, 0);
+  const combined = combineGeometries([first, second]);
+  const firstTriangles = triangleCount(first);
+  const secondComponent = findConnectedComponent(combined, firstTriangles);
+  const matrix = new THREE.Matrix4().makeTranslation(0, 20, 0);
+  const result = transformTrianglesInGeometry(combined, secondComponent.triangles, matrix);
+  const originalFirstVertex = new THREE.Vector3().fromBufferAttribute(combined.getAttribute('position'), 0);
+  const originalMovedVertex = new THREE.Vector3().fromBufferAttribute(combined.getAttribute('position'), firstTriangles * 3);
+  const firstVertex = new THREE.Vector3().fromBufferAttribute(result.getAttribute('position'), 0);
+  const movedVertex = new THREE.Vector3().fromBufferAttribute(result.getAttribute('position'), firstTriangles * 3);
+  assert.equal(firstVertex.y, originalFirstVertex.y);
+  assert.equal(Math.round(movedVertex.y - originalMovedVertex.y), 20);
 });
 
 test('createDisplayEdgesGeometry keeps the visible box outline', () => {

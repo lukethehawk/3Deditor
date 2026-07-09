@@ -23,11 +23,13 @@ import {
   createPushPullRegionGeometry,
   createRegionGeometry,
   deleteTrianglesFromGeometry,
+  findConnectedComponent,
   findCoplanarRegion,
   pushPullGeometry,
   regionHasCoplanarSupport,
   regionHasOpenBoundary,
   repairMeshGeometry,
+  transformTrianglesInGeometry,
   triangleCount,
 } from './geometry.js';
 import { calculateMeasurement } from './measurement.js';
@@ -509,24 +511,30 @@ const staticTranslations = {
     'Modalita selezione': 'Selection mode',
     Faccia: 'Face',
     Oggetto: 'Object',
-    "Faccia seleziona una superficie. Oggetto seleziona l'intero solido.": 'Face selects one surface. Object selects the whole solid.',
+    "Faccia seleziona una superficie. Oggetto seleziona l'intero solido.": 'Face selects one surface. Object selects the clicked body.',
+    'Faccia seleziona una superficie. Oggetto seleziona il corpo cliccato.': 'Face selects one surface. Object selects the clicked body.',
     'Clicca una superficie del modello per selezionarla.': 'Click a model surface to select it.',
     'Clicca una superficie. Usa la rotellina premuta per orbitare.': 'Click a surface. Hold the wheel button to orbit.',
-    'Seleziona una faccia singola o passa a Oggetto per prendere tutto il solido.': 'Select a single face, or switch to Object to pick the whole solid.',
+    'Seleziona una faccia singola o passa a Oggetto per prendere tutto il solido.': 'Select a single face, or switch to Object to pick the clicked body.',
+    'Seleziona una faccia singola o passa a Oggetto per prendere il corpo cliccato.': 'Select a single face, or switch to Object to pick the clicked body.',
     'Modalita faccia: clicca una superficie del modello.': 'Face mode: click a model surface.',
-    "Modalita oggetto: clicca il solido per selezionarlo tutto.": 'Object mode: click the solid to select the whole object.',
+    "Modalita oggetto: clicca il solido per selezionarlo tutto.": 'Object mode: click a body to select it.',
+    'Modalita oggetto: clicca un corpo per selezionarlo.': 'Object mode: click a body to select it.',
     'Nessuna superficie': 'No surface',
     'Nessun oggetto': 'No object',
     'Clicca una superficie del modello.': 'Click a model surface.',
-    "Clicca il solido per selezionarlo tutto.": 'Click the solid to select the whole object.',
+    "Clicca il solido per selezionarlo tutto.": 'Click a body to select it.',
+    'Clicca un corpo per selezionarlo.': 'Click a body to select it.',
     'Oggetto selezionato': 'Object selected',
-    'Intero solido selezionato. Canc lo rimuove, Trasforma lo modifica.': 'Whole object selected. Delete removes it; Transform edits it.',
+    'Intero solido selezionato. Canc lo rimuove, Trasforma lo modifica.': 'Selected body. Delete removes it; Transform edits it.',
+    'Corpo selezionato. Canc lo rimuove, Trasforma lo modifica.': 'Selected body. Delete removes it; Transform edits it.',
     facce: 'faces',
     'Il punto blu indica il centro del foro.': 'The blue point marks the hole center.',
     'La zona blu verra spostata lungo la sua normale.': 'The blue region will move along its normal.',
     'Punto del foro selezionato.': 'Hole point selected.',
     'Superficie selezionata.': 'Surface selected.',
-    'Seleziona una superficie da cancellare, oppure passa a Oggetto per togliere tutto.': 'Select a surface to delete, or switch to Object to remove the whole solid.',
+    'Seleziona una superficie da cancellare, oppure passa a Oggetto per togliere tutto.': 'Select a surface to delete, or switch to Object to remove the clicked body.',
+    'Seleziona una superficie da cancellare, oppure passa a Oggetto per togliere un corpo.': 'Select a surface to delete, or switch to Object to remove a body.',
     "Seleziona l'oggetto da cancellare.": 'Select the object to delete.',
     'Seleziona una superficie da cancellare, oppure usa Rimuovi modello per togliere tutto.': 'Select a surface to delete, or use Remove model to clear everything.',
     "Oggetto cancellato. Usa Ctrl+Z per ripristinarlo.": 'Object deleted. Use Ctrl+Z to restore it.',
@@ -994,7 +1002,7 @@ function clearSelection() {
   }
   ui.selectionLabel.textContent = selectionMode === 'object' ? t('Nessun oggetto') : t('Nessuna superficie');
   ui.selectionDetail.textContent = selectionMode === 'object'
-    ? t("Clicca il solido per selezionarlo tutto.")
+    ? t('Clicca un corpo per selezionarlo.')
     : t('Clicca una superficie del modello.');
   ui.measureValue.value = '-- mm';
 }

@@ -111,7 +111,7 @@ ui.selectionMode.addEventListener('change', () => {
   clearSelection();
   updateInspector();
   setStatus(t(selectionMode === 'object'
-    ? "Modalita oggetto: clicca il solido per selezionarlo tutto."
+    ? 'Modalita oggetto: clicca un corpo per selezionarlo.'
     : 'Modalita faccia: clicca una superficie del modello.'));
 });
 ui.applyTransform.addEventListener('click', transformCurrentModel);
