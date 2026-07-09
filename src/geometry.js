@@ -475,9 +475,10 @@ export function pushPullGeometry(geometry, region, distance) {
     mergedPositions.set(position.array);
     mergedPositions.set(basePositions, position.count * 3);
     result.setAttribute('position', new THREE.Float32BufferAttribute(mergedPositions, 3));
+    result.deleteAttribute('normal');
   }
 
-  position.needsUpdate = true;
+  result.getAttribute('position').needsUpdate = true;
   result.computeVertexNormals();
   result.computeBoundingBox();
   result.computeBoundingSphere();

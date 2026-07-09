@@ -330,6 +330,13 @@ lungo la normale della regione. E' una modifica mesh diretta, non una booleana
 CAD. Funziona bene su facce piane semplici; puo' creare geometrie non manifold
 se usato su mesh complesse o facce con topologia difficile.
 
+Quando la regione e' una faccia aperta, come un piano 2D appoggiato su uno STL,
+`pushPullGeometry()` aggiunge una base e pareti laterali per trasformarla in
+volume. In quel caso il numero di vertici cambia: l'attributo `normal` clonato
+dalla geometria originale deve essere eliminato prima di `computeVertexNormals()`,
+altrimenti WebGL riceve attributi `position` e `normal` di lunghezze diverse e
+il modello puo' apparire come sola wireframe/contorni.
+
 ## Cancellazione con Canc
 
 `handleDeleteKey(event)` intercetta `Delete` fuori dagli input.

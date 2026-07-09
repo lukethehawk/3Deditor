@@ -60,6 +60,7 @@ test('pushPullGeometry extrudes a standalone flat face into a volume', () => {
   assert.equal(Math.round(result.boundingBox.min.z), 0);
   assert.equal(Math.round(result.boundingBox.max.z), 6);
   assert.ok(triangleCount(result) > triangleCount(geometry));
+  assert.equal(result.getAttribute('normal').count, result.getAttribute('position').count);
 });
 
 test('deleteTrianglesFromGeometry removes a selected planar region', () => {
