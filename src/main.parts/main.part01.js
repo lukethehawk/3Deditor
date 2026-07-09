@@ -117,6 +117,8 @@ let edges = null;
 let highlight = null;
 let selected = null;
 let activeTool = 'select';
+let selectionMode = localStorage.getItem('forma3d-selection-mode') ?? 'face';
+let currentLanguage = 'en';
 let currentFileName = 'modello-esempio.stl';
 let pointerDown = null;
 let measurementStart = null;
@@ -223,6 +225,8 @@ const ui = {
   inspector: document.querySelector('#inspector'),
   panelTitle: document.querySelector('#panel-title'),
   panelDescription: document.querySelector('#panel-description'),
+  selectForm: document.querySelector('#select-form'),
+  selectionMode: document.querySelector('#selection-mode'),
   pushPullForm: document.querySelector('#pushpull-form'),
   holeForm: document.querySelector('#hole-form'),
   holeCreateInfo: document.querySelector('#hole-create-info'),
@@ -394,7 +398,7 @@ const ui = {
 };
 
 function setStatus(message) {
-  ui.status.textContent = message;
+  ui.status.textContent = t(message);
 }
 
 const languageText = {
@@ -469,9 +473,41 @@ const staticTranslations = {
     ALTO: 'TOP',
     FRONTE: 'FRONT',
     STRUMENTO: 'TOOL',
+    Seleziona: 'Select',
+    'Modalita selezione': 'Selection mode',
+    Faccia: 'Face',
+    Oggetto: 'Object',
+    "Faccia seleziona una superficie. Oggetto seleziona l'intero solido.": 'Face selects one surface. Object selects the whole solid.',
+    'Clicca una superficie del modello per selezionarla.': 'Click a model surface to select it.',
+    'Clicca una superficie. Usa la rotellina premuta per orbitare.': 'Click a surface. Hold the wheel button to orbit.',
+    'Seleziona una faccia singola o passa a Oggetto per prendere tutto il solido.': 'Select a single face, or switch to Object to pick the whole solid.',
+    'Modalita faccia: clicca una superficie del modello.': 'Face mode: click a model surface.',
+    "Modalita oggetto: clicca il solido per selezionarlo tutto.": 'Object mode: click the solid to select the whole object.',
+    'Nessuna superficie': 'No surface',
+    'Nessun oggetto': 'No object',
+    'Clicca una superficie del modello.': 'Click a model surface.',
+    "Clicca il solido per selezionarlo tutto.": 'Click the solid to select the whole object.',
+    'Oggetto selezionato': 'Object selected',
+    'Intero solido selezionato. Canc lo rimuove, Trasforma lo modifica.': 'Whole object selected. Delete removes it; Transform edits it.',
+    facce: 'faces',
+    'Il punto blu indica il centro del foro.': 'The blue point marks the hole center.',
+    'La zona blu verra spostata lungo la sua normale.': 'The blue region will move along its normal.',
+    'Punto del foro selezionato.': 'Hole point selected.',
+    'Superficie selezionata.': 'Surface selected.',
+    'Seleziona una superficie da cancellare, oppure passa a Oggetto per togliere tutto.': 'Select a surface to delete, or switch to Object to remove the whole solid.',
+    "Seleziona l'oggetto da cancellare.": 'Select the object to delete.',
+    'Seleziona una superficie da cancellare, oppure usa Rimuovi modello per togliere tutto.': 'Select a surface to delete, or use Remove model to clear everything.',
+    "Oggetto cancellato. Usa Ctrl+Z per ripristinarlo.": 'Object deleted. Use Ctrl+Z to restore it.',
+    'Prima clicca una superficie piana.': 'Click a flat surface first.',
+    'In modalita Oggetto puoi cancellare o trasformare il solido. Per Spingi/Tira passa a Faccia.': 'In Object mode you can delete or transform the solid. For Push/Pull, switch to Face.',
+    'Blocco di esempio pronto. Prova Spingi/Tira o Foro.': 'Example block ready. Try Push/Pull or Hole.',
+    'Modifica ripristinata.': 'Change restored.',
     Distanza: 'Distance',
     'Valore positivo: tira. Valore negativo: spingi.': 'Positive value: pull. Negative value: push.',
     'Applica Spingi/Tira': 'Apply Push/Pull',
+    'Spingi/Tira': 'Push/Pull',
+    'Clicca una superficie piana, inserisci la distanza e applica.': 'Click a flat surface, enter the distance, and apply.',
+    'Spingi/Tira: clicca la faccia da allargare o restringere.': 'Push/Pull: click the face to expand or shrink.',
     'Centro foro': 'Hole center',
     'Nessun punto selezionato': 'No point selected',
     'Clicca una faccia: il foro entra lungo la normale della superficie.': 'Click a face: the hole follows the surface normal.',
@@ -479,11 +515,16 @@ const staticTranslations = {
     'Profondita foro': 'Hole depth',
     'Asse bloccato': 'Locked axis',
     'Applica foro': 'Apply hole',
+    Foro: 'Hole',
+    'Clicca una superficie per impostare il centro, poi regola diametro, profondita e offset.': 'Click a surface to set the center, then adjust diameter, depth and offset.',
+    'Foro: clicca il centro sulla superficie. Verde = anteprima del taglio.': 'Hole: click the center on the surface. Green = cut preview.',
     Ricomincia: 'Restart',
     'Foro da spostare': 'Hole to move',
     'Clicca la parete interna del foro da spostare.': 'Click the inner wall of the hole to move.',
     'Nuovo centro': 'New center',
     'Sposta foro': 'Move hole',
+    'Clicca la parete interna del foro, poi scegli il nuovo centro sulla piastra.': 'Click the inner wall of the hole, then choose the new center on the plate.',
+    'Sposta foro: prima clicca dentro il foro, poi clicca la nuova posizione.': 'Move hole: first click inside the hole, then click the new position.',
     'Punto base': 'Base point',
     'Clicca dove vuoi appoggiare il parallelepipedo.': 'Click where you want to place the box.',
     Operazione: 'Operation',
@@ -496,6 +537,9 @@ const staticTranslations = {
     'Spostamento Y': 'Offset Y',
     'Spostamento Z': 'Offset Z',
     'Applica box': 'Apply box',
+    Parallelepipedo: 'Box',
+    'Clicca il punto di appoggio, regola le misure e scegli se sommare o sottrarre dal solido.': 'Click the base point, adjust dimensions, and choose whether to add or subtract from the solid.',
+    'Parallelepipedo: clicca sul piano o su una faccia. Anteprima arancione = nuovo solido.': 'Box: click the work plane or a face. Orange preview = new solid.',
     'Centro base': 'Base center',
     'Clicca dove vuoi appoggiare il cilindro.': 'Click where you want to place the cylinder.',
     'Clicca dove vuoi appoggiare il cono.': 'Click where you want to place the cone.',
@@ -511,11 +555,19 @@ const staticTranslations = {
     'Altezza / profondita': 'Height / depth',
     Altezza: 'Height',
     'Applica cilindro': 'Apply cylinder',
+    'Clicca il centro di appoggio, scegli asse, diametro, altezza e operazione booleana.': 'Click the base center, choose axis, diameter, height and boolean operation.',
+    'Cilindro: clicca dove appoggiare il centro. Puoi sommare o sottrarre.': 'Cylinder: click where to place the center. You can add or subtract.',
     'Applica cono': 'Apply cone',
+    Cono: 'Cone',
+    'Clicca il centro della base, scegli asse, diametro, altezza e operazione booleana.': 'Click the base center, choose axis, diameter, height and boolean operation.',
+    'Cono: clicca il centro base, poi regola diametro, altezza e asse.': 'Cone: click the base center, then adjust diameter, height and axis.',
     'La base rettangolare resta centrata sul punto scelto.': 'The rectangular base stays centered on the picked point.',
     'Base X': 'Base X',
     'Base Y': 'Base Y',
     'Applica piramide': 'Apply pyramid',
+    Piramide: 'Pyramid',
+    'Clicca il centro della base, regola base, altezza, asse e operazione booleana.': 'Click the base center, then adjust base, height, axis and boolean operation.',
+    'Piramide: clicca il centro base, poi regola base X, base Y e altezza.': 'Pyramid: click the base center, then adjust base X, base Y and height.',
     "Clicca dove vuoi appoggiare l'ingranaggio.": 'Click where you want to place the gear.',
     'Profilo a denti dritti semplificato, pensato per stampa 3D.': 'Simplified spur gear profile for 3D printing.',
     'Numero denti': 'Teeth',
@@ -531,6 +583,9 @@ const staticTranslations = {
     Alta: 'High',
     "Il gioco riduce l'ampiezza angolare dei denti: non e' un profilo involuta industriale.": 'Backlash narrows tooth angles: this is not an industrial involute profile.',
     'Applica ingranaggio': 'Apply gear',
+    Ingranaggio: 'Gear',
+    'Crea un ingranaggio cilindrico a denti dritti con foro centrale e mozzo opzionale.': 'Create a simplified spur gear with center bore and optional hub.',
+    'Ingranaggio: clicca il centro base, poi regola denti, modulo, spessore e foro.': 'Gear: click the base center, then adjust teeth, module, width and bore.',
     'Centro piano': 'Plane center',
     'Clicca dove vuoi creare il piano.': 'Click where you want to create the plane.',
     "Il piano e' una faccia piatta: usa Spingi/Tira per darle volume.": 'The plane is a flat face: use Push/Pull to give it volume.',
@@ -544,6 +599,9 @@ const staticTranslations = {
     'Piano XZ': 'XZ plane',
     'Larghezza / diametro': 'Width / diameter',
     'Applica piano': 'Apply plane',
+    Piani: 'Planes',
+    'Crea rettangoli, quadrati o tondi piatti da usare come facce di partenza.': 'Create flat rectangles, squares or circles to use as starting faces.',
+    'Piani: clicca centro e forma. Poi usa Spingi/Tira per dare volume.': 'Planes: click center and shape. Then use Push/Pull to add volume.',
     'Figura da sottrarre': 'Shape to subtract',
     'Scegli forma e clicca dove vuoi togliere materiale.': 'Choose a shape and click where you want to remove material.',
     'Anteprima arancione: volume che verra rimosso dallo STL.': 'Orange preview: volume that will be removed from the STL.',
@@ -555,6 +613,9 @@ const staticTranslations = {
     'Profondita taglio': 'Cut depth',
     'Per scavare dentro una faccia, clicca la faccia e usa gli offset per centrare il taglio.': 'To carve into a face, click the face and use offsets to center the cut.',
     'Sottrai dallo STL': 'Subtract from STL',
+    'Sottrai solido': 'Subtract solid',
+    'Crea un box o un cilindro di taglio e sottrailo dal file STL caricato.': 'Create a box or cylinder cutting tool and subtract it from the loaded STL.',
+    "Sottrai: clicca sull'STL o sul piano, regola la figura arancione e applica.": 'Subtract: click the STL or work plane, adjust the orange shape and apply.',
     Guide: 'Guides',
     'Clicca punti, vertici e punti medi per creare linee guida e facce.': 'Click points, vertices and midpoints to create guides and faces.',
     'Le linee sono elementi di costruzione: gli altri strumenti possono agganciarsi a estremi, midpoint e segmenti.': 'Lines are construction elements: other tools can snap to endpoints, midpoints and segments.',
@@ -567,6 +628,9 @@ const staticTranslations = {
     'Auto 3D aggancia i punti reali anche su piani diversi. Quando le guide chiudono un contorno, la faccia appare in verde.': '3D auto snaps real points across planes. When guides close an outline, the face appears in green.',
     'Applica facce': 'Apply faces',
     'Nuova linea': 'New line',
+    Linea: 'Line',
+    'Traccia guide 3D indipendenti. Quando chiudono un contorno, nasce anche una faccia applicabile al modello.': 'Draw independent 3D guides. When they close an outline, a face can also be applied to the model.',
+    'Linea: gli altri strumenti si agganciano a estremi, midpoint e segmenti delle guide.': 'Line: other tools snap to endpoints, midpoints and guide segments.',
     'Punto inizio testo': 'Text start point',
     'Clicca dove vuoi appoggiare il testo.': 'Click where you want to place the text.',
     "Il punto cliccato e' l'angolo basso sinistro del testo.": 'The clicked point is the lower-left corner of the text.',
@@ -581,6 +645,9 @@ const staticTranslations = {
     'Smusso bordo': 'Edge bevel',
     'Rotazione Z': 'Z rotation',
     'Applica testo 3D': 'Apply 3D text',
+    'Testo 3D': '3D Text',
+    'Clicca il punto di partenza, scrivi il testo e regola font, profondita, larghezza ed effetti.': 'Click the start point, type the text, and adjust font, depth, width and effects.',
+    'Testo: clicca il punto basso sinistro, poi modifica il pannello a destra.': 'Text: click the lower-left point, then edit the right panel.',
     'Modello intero': 'Whole model',
     'Trasforma la mesh corrente': 'Transform the current mesh',
     'Le modifiche vengono applicate ai vertici, quindi restano compatibili con STL e booleane successive.': 'Changes are applied to vertices, so they remain compatible with STL and later booleans.',
@@ -593,13 +660,30 @@ const staticTranslations = {
     'Scala uniforme': 'Uniform scale',
     'Rotazione e scala avvengono attorno al centro del modello.': 'Rotation and scale happen around the model center.',
     'Applica trasformazione': 'Apply transform',
+    Trasforma: 'Transform',
+    "Sposta, ruota o scala l'intero modello applicando la trasformazione ai vertici STL.": 'Move, rotate or scale the whole model by applying the transform to STL vertices.',
+    'Trasforma: inserisci spostamento, rotazione o scala e applica.': 'Transform: enter translation, rotation or scale and apply.',
     'Misure': 'Measurements',
+    Misura: 'Measure',
+    'Clicca due punti sul modello. La distanza viene scomposta sugli assi X, Y e Z.': 'Click two points on the model. The distance is split across X, Y and Z axes.',
+    'Misura: clicca il primo punto, poi il secondo. Rosso X, verde Y, blu Z.': 'Measure: click the first point, then the second. Red X, green Y, blue Z.',
     Totale: 'Total',
+    Orbita: 'Orbit',
+    'Trascina con il tasto sinistro per ruotare la vista.': 'Drag with the left button to rotate the view.',
+    'Orbita: trascina per guardare il modello da ogni lato.': 'Orbit: drag to view the model from every side.',
+    Panoramica: 'Pan',
+    'Trascina con il tasto sinistro per spostare la vista.': 'Drag with the left button to pan the view.',
+    'Panoramica: trascina per spostare il foglio di lavoro.': 'Pan: drag to move the workspace.',
     'Annulla': 'Cancel',
     'Ripristina': 'Redo',
     Pronto: 'Ready',
   },
 };
+
+function t(source) {
+  const translations = staticTranslations[currentLanguage];
+  return translations?.[source] ?? source;
+}
 
 function translateStaticText(language) {
   const translations = staticTranslations[language];
@@ -648,10 +732,13 @@ function setButtonHtml(selector, icon, value, withCaret = false) {
 
 function applyLanguage(language) {
   const dictionary = languageText[language] ?? languageText.it;
+  currentLanguage = dictionary === languageText.en ? 'en' : 'it';
   document.documentElement.lang = language;
   document.title = dictionary.title;
   localStorage.setItem('forma3d-language', language);
   ui.languageSelect.value = language;
+  ui.languageSelect.querySelector('option[value="en"]').textContent = '🇬🇧 English';
+  ui.languageSelect.querySelector('option[value="it"]').textContent = '🇮🇹 Italiano';
   translateStaticText(language);
   setButtonHtml('#open-file', 'O', dictionary.open);
   setButtonHtml('#remove-model', 'X', dictionary.remove);
@@ -785,12 +872,14 @@ function clearSelection() {
   selected = null;
   if (highlight) {
     scene.remove(highlight);
-    highlight.geometry.dispose();
+    disposeObject(highlight);
     highlight = null;
     requestRender();
   }
-  ui.selectionLabel.textContent = 'Nessuna superficie';
-  ui.selectionDetail.textContent = 'Clicca una superficie del modello.';
+  ui.selectionLabel.textContent = selectionMode === 'object' ? t('Nessun oggetto') : t('Nessuna superficie');
+  ui.selectionDetail.textContent = selectionMode === 'object'
+    ? t("Clicca il solido per selezionarlo tutto.")
+    : t('Clicca una superficie del modello.');
   ui.measureValue.value = '-- mm';
 }
 

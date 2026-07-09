@@ -615,8 +615,10 @@ function applyMoveHole() {
 }
 
 function applyPushPull(distance) {
-  if (!selected || !model) {
-    setStatus('Prima clicca una superficie piana.');
+  if (!selected || !model || selected.type !== 'face') {
+    setStatus(t(selected?.type === 'object'
+      ? 'In modalita Oggetto puoi cancellare o trasformare il solido. Per Spingi/Tira passa a Faccia.'
+      : 'Prima clicca una superficie piana.'));
     return;
   }
   if (!Number.isFinite(distance) || distance === 0) {

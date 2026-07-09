@@ -29,8 +29,8 @@
           <div id="options-menu" class="top-menu-panel" hidden>
             <label for="language-select">Lingua</label>
             <select id="language-select">
-              <option value="it">Italiano</option>
-              <option value="en">English</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="it">🇮🇹 Italiano</option>
             </select>
             <button id="repair-model" class="top-button" type="button">
               <span class="button-icon">R</span> Ripara mesh
@@ -178,6 +178,15 @@
           <button id="close-panel" class="icon-button" aria-label="Chiudi">x</button>
         </div>
         <p id="panel-description">Clicca una superficie del modello per selezionarla.</p>
+
+        <form id="select-form" class="tool-form" hidden>
+          <label for="selection-mode">Modalita selezione</label>
+          <select id="selection-mode">
+            <option value="face">Faccia</option>
+            <option value="object">Oggetto</option>
+          </select>
+          <small>Faccia seleziona una superficie. Oggetto seleziona l'intero solido.</small>
+        </form>
 
         <form id="pushpull-form" class="tool-form" hidden>
           <label for="pushpull-distance">Distanza</label>

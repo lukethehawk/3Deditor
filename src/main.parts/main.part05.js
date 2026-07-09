@@ -105,6 +105,15 @@ document.addEventListener('click', (event) => {
 ui.languageSelect.addEventListener('change', () => {
   applyLanguage(ui.languageSelect.value);
 });
+ui.selectionMode.addEventListener('change', () => {
+  selectionMode = ui.selectionMode.value === 'object' ? 'object' : 'face';
+  localStorage.setItem('forma3d-selection-mode', selectionMode);
+  clearSelection();
+  updateInspector();
+  setStatus(t(selectionMode === 'object'
+    ? "Modalita oggetto: clicca il solido per selezionarlo tutto."
+    : 'Modalita faccia: clicca una superficie del modello.'));
+});
 ui.applyTransform.addEventListener('click', transformCurrentModel);
 [
   ...ui.transformTranslateInputs,
@@ -122,7 +131,10 @@ document.querySelectorAll('[data-view]').forEach((button) => {
 });
 document.querySelector('#close-panel').addEventListener('click', () => {
   ui.inspector.classList.remove('open');
-  setTool('select');
+  if (activeTool !== 'select') {
+    setTool('select');
+    ui.inspector.classList.remove('open');
+  }
 });
 document.querySelector('#clear-measure').addEventListener('click', () => {
   clearMeasurement();
@@ -452,6 +464,6 @@ window.addEventListener('keydown', (event) => {
 new ResizeObserver(resize).observe(viewport);
 createExample();
 updateInspector();
-applyLanguage(localStorage.getItem('forma3d-language') ?? 'it');
+applyLanguage(localStorage.getItem('forma3d-language') ?? 'en');
 
 requestRender();

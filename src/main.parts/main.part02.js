@@ -248,6 +248,7 @@ function restoreFrom(source, destination) {
   if (model) destination.push(model.geometry.clone());
   const geometry = source.pop();
   setModelGeometry(geometry, false, { preserveSketch: true });
+  ui.fileName.textContent = currentFileName;
   updateHistoryButtons();
   setStatus('Modifica ripristinata.');
 }
@@ -305,8 +306,19 @@ function removeCurrentModel() {
 
 function deleteSelectedRegion() {
   if (!selected || !model) {
-    setStatus('Seleziona una superficie da cancellare, oppure usa Rimuovi modello per togliere tutto.');
+    setStatus(t(selectionMode === 'object'
+      ? "Seleziona l'oggetto da cancellare."
+      : 'Seleziona una superficie da cancellare, oppure usa Rimuovi modello per togliere tutto.'));
     return false;
+  }
+
+  if (selected.type === 'object') {
+    const removedFileName = currentFileName;
+    snapshot();
+    clearCurrentModel(t("Oggetto cancellato. Usa Ctrl+Z per ripristinarlo."));
+    currentFileName = removedFileName;
+    updateHistoryButtons();
+    return true;
   }
 
   const triangleCount = selected.region.triangles.length;
@@ -658,9 +670,15 @@ function updateInspector() {
     },
   };
   const current = config[activeTool] ?? config.select;
-  ui.panelTitle.textContent = current.title;
-  ui.panelDescription.textContent = current.description;
-  ui.hint.textContent = current.hint;
+  ui.panelTitle.textContent = t(current.title);
+  ui.panelDescription.textContent = activeTool === 'select'
+    ? t('Seleziona una faccia singola o passa a Oggetto per prendere tutto il solido.')
+    : t(current.description);
+  ui.hint.textContent = activeTool === 'select' && selectionMode === 'object'
+    ? t("Modalita oggetto: clicca il solido per selezionarlo tutto.")
+    : t(current.hint);
+  ui.selectForm.hidden = activeTool !== 'select';
+  ui.selectionMode.value = selectionMode;
   ui.pushPullForm.hidden = activeTool !== 'pushpull';
   ui.holeForm.hidden = activeTool !== 'hole';
   ui.moveHoleForm.hidden = activeTool !== 'movehole';
@@ -678,7 +696,7 @@ function updateInspector() {
   document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line', 'transform'].includes(activeTool);
   ui.inspector.classList.toggle(
     'open',
-    ['pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line', 'measure', 'transform'].includes(activeTool),
+    ['select', 'pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line', 'measure', 'transform'].includes(activeTool),
   );
   updateMeasureBoxMode();
 }
@@ -768,7 +786,9 @@ function setTool(tool) {
             : 'default';
   updateInspector();
   const statusByTool = {
-    select: 'Selezione attiva. Clicca una superficie del modello.',
+    select: selectionMode === 'object'
+      ? "Modalita oggetto: clicca il solido per selezionarlo tutto."
+      : 'Modalita faccia: clicca una superficie del modello.',
     pushpull: 'Spingi/Tira: clicca una superficie piana.',
     hole: 'Foro: clicca il centro sulla superficie.',
     movehole: 'Sposta foro: clicca la parete interna del foro.',
@@ -786,7 +806,7 @@ function setTool(tool) {
     orbit: 'Orbita: trascina per ruotare la vista.',
     pan: 'Panoramica: trascina per spostare la vista.',
   };
-  if (statusByTool[tool]) setStatus(statusByTool[tool]);
+  if (statusByTool[tool]) setStatus(t(statusByTool[tool]));
 }
 
 function raycastModel(clientX, clientY) {
@@ -1050,7 +1070,35 @@ function pickSelectableRegion(clientX, clientY) {
   return best;
 }
 
+function selectObjectAt(clientX, clientY) {
+  const hit = raycastModel(clientX, clientY);
+  if (!hit) {
+    clearSelection();
+    return;
+  }
+
+  clearSelection();
+  selected = {
+    type: 'object',
+    point: hit.point.clone(),
+  };
+
+  highlight = new THREE.BoxHelper(model, 0x2c92d5);
+  highlight.renderOrder = 3;
+  addTransientOverlay(highlight, 'selection');
+  ui.selectionLabel.textContent = t('Oggetto selezionato');
+  ui.selectionDetail.textContent = t('Intero solido selezionato. Canc lo rimuove, Trasforma lo modifica.');
+  ui.measureValue.value = `${triangleCount(model.geometry)} ${t('facce')}`;
+  ui.inspector.classList.add('open');
+  setStatus(t('Oggetto selezionato'));
+}
+
 function selectAt(clientX, clientY) {
+  if (selectionMode === 'object') {
+    selectObjectAt(clientX, clientY);
+    return;
+  }
+
   const picked = pickSelectableRegion(clientX, clientY);
   if (!picked) {
     clearSelection();
@@ -1060,6 +1108,7 @@ function selectAt(clientX, clientY) {
   const { hit, region } = picked;
   clearSelection();
   selected = {
+    type: 'face',
     point: hit.point.clone(),
     normal: region.normal.clone(),
     region,
@@ -1071,14 +1120,16 @@ function selectAt(clientX, clientY) {
   );
   highlight.renderOrder = 3;
   addTransientOverlay(highlight, 'selection');
-  ui.selectionLabel.textContent = `Superficie selezionata (${region.triangles.length} triangoli)`;
+  ui.selectionLabel.textContent = currentLanguage === 'en'
+    ? `Surface selected (${region.triangles.length} triangles)`
+    : `Superficie selezionata (${region.triangles.length} triangoli)`;
   ui.selectionDetail.textContent =
     activeTool === 'hole'
-      ? 'Il punto blu indica il centro del foro.'
-      : 'La zona blu verra spostata lungo la sua normale.';
-  ui.measureValue.value = `${region.triangles.length} facce`;
+      ? t('Il punto blu indica il centro del foro.')
+      : t('La zona blu verra spostata lungo la sua normale.');
+  ui.measureValue.value = `${region.triangles.length} ${t('facce')}`;
   ui.inspector.classList.add('open');
-  setStatus(activeTool === 'hole' ? 'Punto del foro selezionato.' : 'Superficie selezionata.');
+  setStatus(t(activeTool === 'hole' ? 'Punto del foro selezionato.' : 'Superficie selezionata.'));
 }
 
 function createMeasureLine(start, end, color, dashed = false) {
