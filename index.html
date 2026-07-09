@@ -57,33 +57,70 @@
         <div class="tool-menu">
           <button class="tool tool-menu-trigger" type="button" title="Solidi">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7-4 7 4v8l-7 4-7-4z"/><path d="M5 8l7 4 7-4M12 12v8"/></svg>
-            <span>Solidi</span>
+            <span data-menu-label="solids">Solidi</span>
             <i aria-hidden="true">›</i>
           </button>
           <div class="tool-submenu">
-            <button class="tool compact" data-tool="box" title="Parallelepipedo (B)">Box</button>
-            <button class="tool compact" data-tool="cylinder" title="Cilindro (C)">Cilindro</button>
-            <button class="tool compact" data-tool="cone" title="Cono (V)">Cono</button>
-            <button class="tool compact" data-tool="pyramid" title="Piramide (I)">Piramide</button>
-            <button class="tool compact" data-tool="text" title="Testo 3D (A)">Testo 3D</button>
+            <button class="tool compact" data-tool="box" title="Parallelepipedo (B)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7-4 7 4v8l-7 4-7-4z"/><path d="M5 8l7 4 7-4M12 12v8"/></svg>
+              <span>Box</span>
+            </button>
+            <button class="tool compact" data-tool="cylinder" title="Cilindro (C)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="6" ry="3"/><path d="M6 6v12c0 1.7 2.7 3 6 3s6-1.3 6-3V6"/><ellipse cx="12" cy="18" rx="6" ry="3"/></svg>
+              <span>Cilindro</span>
+            </button>
+            <button class="tool compact" data-tool="cone" title="Cono (V)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L5 18"/><path d="M12 3l7 15"/><ellipse cx="12" cy="18" rx="7" ry="3"/></svg>
+              <span>Cono</span>
+            </button>
+            <button class="tool compact" data-tool="pyramid" title="Piramide (I)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L4 18h16z"/><path d="M12 3l2 15M4 18l10 3 6-3"/></svg>
+              <span>Piramide</span>
+            </button>
+            <button class="tool compact" data-tool="text" title="Testo 3D (A)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M12 6v13M9 19h6"/></svg>
+              <span>Testo 3D</span>
+            </button>
           </div>
         </div>
         <div class="tool-menu">
           <button class="tool tool-menu-trigger" type="button" title="Operazioni booleane">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l7-4 7 4v8l-7 4-7-4z"/><path d="M14 11h7M18 8l3 3-3 3"/></svg>
-            <span>Booleane</span>
+            <span data-menu-label="booleans">Booleane</span>
             <i aria-hidden="true">›</i>
           </button>
           <div class="tool-submenu">
-            <button class="tool compact" data-tool="cut" title="Sottrai solido (T)">Sottrai</button>
-            <button class="tool compact" data-tool="hole" title="Foro (H)">Foro</button>
-            <button class="tool compact" data-tool="movehole" title="Sposta foro (F)">Sposta foro</button>
+            <button class="tool compact" data-tool="cut" title="Sottrai solido (T)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7-4 7 4v8l-7 4-7-4z"/><path d="M15 12h6"/></svg>
+              <span>Sottrai</span>
+            </button>
+            <button class="tool compact" data-tool="hole" title="Foro (H)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Foro</span>
+            </button>
+            <button class="tool compact" data-tool="movehole" title="Sposta foro (F)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><path d="M11 12h3M14 9l3 3-3 3"/></svg>
+              <span>Sposta foro</span>
+            </button>
           </div>
         </div>
-        <button class="tool" data-tool="line" title="Linea (L)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L9 8l5 5 6-7"/><circle cx="4" cy="18" r="2"/><circle cx="9" cy="8" r="2"/><circle cx="14" cy="13" r="2"/><circle cx="20" cy="6" r="2"/></svg>
-          <span>Linea</span>
-        </button>
+        <div class="tool-menu">
+          <button class="tool tool-menu-trigger" type="button" title="Strumenti 2D">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18h16M6 16l5-10 4 7 3-4"/><circle cx="6" cy="16" r="1.5"/><circle cx="18" cy="9" r="1.5"/></svg>
+            <span data-menu-label="twoD">2D</span>
+            <i aria-hidden="true">&rsaquo;</i>
+          </button>
+          <div class="tool-submenu">
+            <button class="tool compact" data-tool="line" title="Linea (L)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L9 8l5 5 6-7"/><circle cx="4" cy="18" r="2"/><circle cx="9" cy="8" r="2"/><circle cx="14" cy="13" r="2"/><circle cx="20" cy="6" r="2"/></svg>
+              <span>Linea</span>
+            </button>
+            <button class="tool compact" data-tool="plane" title="Piani (N)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4-8 4z"/><path d="M4 8v6l8 4 8-4V8"/></svg>
+              <span>Piani</span>
+            </button>
+          </div>
+        </div>
         <button class="tool" data-tool="measure" title="Misura (M)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17L17 4l3 3L7 20z"/><path d="M9 15l-2-2M12 12l-2-2M15 9l-2-2"/></svg>
           <span>Misura</span>
@@ -414,6 +451,56 @@
           </div>
           <button id="apply-pyramid" type="button" class="action-button" disabled>Applica piramide</button>
           <button id="reset-pyramid" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="plane-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Centro piano</span>
+            <strong id="plane-info">Clicca dove vuoi creare il piano.</strong>
+            <small>Il piano e' una faccia piatta: usa Spingi/Tira per darle volume.</small>
+          </div>
+          <label for="plane-shape">Forma piano</label>
+          <select id="plane-shape">
+            <option value="rectangle">Rettangolo</option>
+            <option value="square">Quadrato</option>
+            <option value="circle">Tondo</option>
+          </select>
+          <label for="plane-axis">Asse</label>
+          <select id="plane-axis">
+            <option value="face">Piano della faccia</option>
+            <option value="z">Piano XY</option>
+            <option value="x">Piano YZ</option>
+            <option value="y">Piano XZ</option>
+          </select>
+          <div class="offset-grid">
+            <label for="plane-width" class="axis-x">Larghezza / diametro</label>
+            <div class="field-with-unit">
+              <input id="plane-width" type="text" inputmode="decimal" min="0.1" step="0.1" value="30" />
+              <span>mm</span>
+            </div>
+            <label for="plane-depth" class="axis-y">Profondita</label>
+            <div class="field-with-unit">
+              <input id="plane-depth" type="text" inputmode="decimal" min="0.1" step="0.1" value="20" />
+              <span>mm</span>
+            </div>
+            <label for="plane-offset-x" class="axis-x">Spostamento X</label>
+            <div class="field-with-unit">
+              <input id="plane-offset-x" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="plane-offset-y" class="axis-y">Spostamento Y</label>
+            <div class="field-with-unit">
+              <input id="plane-offset-y" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+            <label for="plane-offset-z" class="axis-z">Spostamento Z</label>
+            <div class="field-with-unit">
+              <input id="plane-offset-z" type="text" inputmode="decimal" step="0.1" value="0" />
+              <span>mm</span>
+            </div>
+          </div>
+          <button id="apply-plane" type="button" class="action-button" disabled>Applica piano</button>
+          <button id="reset-plane" type="button" class="secondary-button">Ricomincia</button>
         </form>
 
         <form id="cut-form" class="tool-form primitive-form" hidden>

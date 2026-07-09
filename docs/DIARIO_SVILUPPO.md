@@ -96,14 +96,17 @@ file generato.
 
 La toolbar verticale non espone piu' tutte le azioni in una lista piatta:
 
-- strumenti diretti: `Seleziona`, `Spingi/Tira`, `Linea`, `Misura`,
+- strumenti diretti: `Seleziona`, `Spingi/Tira`, `Misura`,
   `Trasforma`, navigazione vista;
 - menu `Solidi`: `Box`, `Cilindro`, `Cono`, `Piramide`, `Testo 3D`;
 - menu `Booleane`: `Sottrai`, `Foro`, `Sposta foro`.
+- menu `2D`: `Linea`, `Piani`.
 
 I sottomenu sono elementi HTML leggeri che si aprono verso destra con hover o
 focus. I pulsanti reali mantengono `data-tool`, quindi il controller continua a
 passare da `setTool(tool)` e le scorciatoie restano indipendenti dal layout.
+Le voci dei sottomenu usano piccole icone SVG inline per distinguere solidi,
+booleane e strumenti 2D senza allungare la toolbar.
 
 La topbar mantiene `Apri STL` e `Rimuovi modello` come azioni primarie. Il menu
 `Opzioni`, ultimo tasto a destra, contiene:
@@ -157,7 +160,8 @@ Il controller principale usa variabili di stato semplici:
 - `undoStack` / `redoStack`: cloni di geometrie per annulla/ripristina.
 - `snapPoints`: vertici raccolti dalla geometria corrente.
 - stati temporanei degli strumenti: `holeCreate`, `holeMove`, `boxPlacement`,
-  `cylinderPlacement`, `cutPlacement`, `sketchPoints`, `measurementStart`.
+  `cylinderPlacement`, `conePlacement`, `pyramidPlacement`, `planePlacement`,
+  `cutPlacement`, `textPlacement`, `sketchPoints`, `measurementStart`.
 
 La scena contiene oggetti permanenti (griglia, luci, modello, edges) e overlay
 temporanei. Gli overlay vengono marcati con `userData.transientOverlay` e
@@ -392,6 +396,9 @@ Le primitive sono create in `src/primitives.js`.
   centrata sul punto cliccato e apice lungo la direzione scelta.
 - `createPyramidGeometryFromBase(base, size, height, direction)`: piramide a base
   rettangolare centrata sul punto cliccato, orientata lungo asse faccia/X/Y/Z.
+- `createPlaneGeometryFromBase(base, shape, size, direction)`: crea facce 2D
+  piatte rettangolari, quadrate o tonde, centrate sul punto cliccato e orientate
+  sul piano della faccia o sugli assi principali.
 - `createExtrudedPolygonGeometry(points, height)`: estrude una sagoma 2D chiusa.
 - `createTextGeometryFromBase(base, text, font, options)`: genera testo 3D
   estruso usando `TextGeometry`, normalizza l'angolo basso sinistro sul punto
@@ -416,6 +423,21 @@ Le primitive solide nel menu `Solidi` condividono la stessa logica UI:
 
 Scorciatoie correnti: `B` box, `C` cilindro, `V` cono, `I` piramide, `A` testo
 3D.
+
+Lo strumento `Piani` vive nel menu `2D` e crea una faccia piatta, non un solido:
+
+- forme disponibili: rettangolo, quadrato, tondo;
+- asse `face`, `x`, `y`, `z`, esposto in UI come piano della faccia, XY, YZ,
+  XZ;
+- anteprima wireframe blu;
+- applicazione tramite `combineGeometries()`.
+
+Il piano resta una superficie STL vera. Per dargli volume si usa `Spingi/Tira`.
+Per supportare questo caso, `pushPullGeometry()` riconosce i bordi aperti della
+regione selezionata: sui solidi chiusi continua a spostare i vertici condivisi,
+mentre su una faccia isolata duplica la faccia di partenza e crea le pareti
+laterali lungo il movimento. In questo modo una faccia piatta puo' diventare un
+prisma senza passare da una booleana.
 
 Per il testo in rilievo sul modello si usa invece `combineGeometries()`:
 concatena i vertici del modello e della scritta senza booleana. E' molto piu'
@@ -636,8 +658,11 @@ Shortcut principali:
 - `F`: sposta foro;
 - `B`: box;
 - `C`: cilindro;
+- `V`: cono;
+- `I`: piramide;
 - `T`: sottrai;
 - `L`: linea;
+- `N`: piani 2D;
 - `A`: testo 3D;
 - `M`: misura;
 - `G`: trasforma modello;
@@ -648,8 +673,8 @@ Shortcut principali:
 ## Problemi noti e limiti
 
 - STL e' una mesh triangolare, non contiene quote, vincoli o cronologia CAD.
-- Spingi/Tira sposta vertici selezionati; non ricostruisce superfici laterali
-  parametriche.
+- Spingi/Tira non e' parametrico: sui piani isolati crea pareti laterali mesh,
+  ma non conserva vincoli CAD modificabili.
 - Le booleane richiedono mesh ragionevolmente chiuse e pulite.
 - La cancellazione di superfici puo' lasciare buchi aperti.
 - Il testo 3D e' una geometria mesh, non testo modificabile dopo l'applicazione.

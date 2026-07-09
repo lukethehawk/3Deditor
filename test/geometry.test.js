@@ -43,6 +43,25 @@ test('pushPullGeometry moves a planar cap and stretches the solid', () => {
   assert.ok(Math.abs(result.boundingBox.min.z + 3) < 1e-6);
 });
 
+test('pushPullGeometry extrudes a standalone flat face into a volume', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -5, -5, 0,
+    5, -5, 0,
+    5, 5, 0,
+    -5, -5, 0,
+    5, 5, 0,
+    -5, 5, 0,
+  ], 3));
+  geometry.computeVertexNormals();
+  const region = findCoplanarRegion(geometry, 0);
+  const result = pushPullGeometry(geometry, region, 6);
+  result.computeBoundingBox();
+  assert.equal(Math.round(result.boundingBox.min.z), 0);
+  assert.equal(Math.round(result.boundingBox.max.z), 6);
+  assert.ok(triangleCount(result) > triangleCount(geometry));
+});
+
 test('deleteTrianglesFromGeometry removes a selected planar region', () => {
   const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
   const region = findCoplanarRegion(geometry, findTopTriangle(geometry));

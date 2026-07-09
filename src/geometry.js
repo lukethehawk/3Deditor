@@ -437,6 +437,8 @@ export function pushPullGeometry(geometry, region, distance) {
   const position = result.getAttribute('position');
   const point = new THREE.Vector3();
   const offset = region.normal.clone().multiplyScalar(distance);
+  const openBoundaryEdges = collectOpenRegionBoundaryEdges(geometry, region);
+  const basePositions = [];
 
   for (let index = 0; index < position.count; index += 1) {
     point.fromBufferAttribute(position, index);
@@ -446,11 +448,73 @@ export function pushPullGeometry(geometry, region, distance) {
     }
   }
 
+  if (openBoundaryEdges.length) {
+    const sourcePosition = geometry.getAttribute('position');
+    for (const triangle of region.triangles) {
+      for (let corner = 2; corner >= 0; corner -= 1) {
+        point.fromBufferAttribute(sourcePosition, triangle * 3 + corner);
+        basePositions.push(point.x, point.y, point.z);
+      }
+    }
+    for (const edge of openBoundaryEdges) {
+      const movedStart = edge.start.clone().add(offset);
+      const movedEnd = edge.end.clone().add(offset);
+      basePositions.push(
+        edge.start.x, edge.start.y, edge.start.z,
+        edge.end.x, edge.end.y, edge.end.z,
+        movedEnd.x, movedEnd.y, movedEnd.z,
+        edge.start.x, edge.start.y, edge.start.z,
+        movedEnd.x, movedEnd.y, movedEnd.z,
+        movedStart.x, movedStart.y, movedStart.z,
+      );
+    }
+  }
+
+  if (basePositions.length) {
+    const mergedPositions = new Float32Array(position.count * 3 + basePositions.length);
+    mergedPositions.set(position.array);
+    mergedPositions.set(basePositions, position.count * 3);
+    result.setAttribute('position', new THREE.Float32BufferAttribute(mergedPositions, 3));
+  }
+
   position.needsUpdate = true;
   result.computeVertexNormals();
   result.computeBoundingBox();
   result.computeBoundingSphere();
   return result;
+}
+
+function collectOpenRegionBoundaryEdges(geometry, region) {
+  const position = geometry.getAttribute('position');
+  const selectedTriangles = new Set(region.triangles);
+  const selectedEdges = new Map();
+  const unselectedEdgeKeys = new Set();
+  const points = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+
+  for (let triangle = 0; triangle < position.count / 3; triangle += 1) {
+    for (let corner = 0; corner < 3; corner += 1) {
+      points[corner].fromBufferAttribute(position, triangle * 3 + corner);
+    }
+    for (const [from, to] of [[0, 1], [1, 2], [2, 0]]) {
+      const key = edgeKey(points[from], points[to], region.tolerance);
+      if (selectedTriangles.has(triangle)) {
+        if (!selectedEdges.has(key)) {
+          selectedEdges.set(key, {
+            count: 0,
+            start: points[from].clone(),
+            end: points[to].clone(),
+          });
+        }
+        selectedEdges.get(key).count += 1;
+      } else {
+        unselectedEdgeKeys.add(key);
+      }
+    }
+  }
+
+  return [...selectedEdges.values()].filter((edge) =>
+    edge.count === 1 && !unselectedEdgeKeys.has(edgeKey(edge.start, edge.end, region.tolerance)),
+  );
 }
 
 export function deleteTrianglesFromGeometry(geometry, triangleIndexes) {

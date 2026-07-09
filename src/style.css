@@ -261,9 +261,24 @@ button {
   width: 100%;
   flex-direction: row;
   justify-content: flex-start;
+  gap: 8px;
   padding: 0 10px;
   text-align: left;
   font-size: 12px;
+}
+
+.tool.compact svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  stroke-width: 1.8;
+}
+
+.tool.compact span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tool:hover {

@@ -8,6 +8,7 @@ import {
   createConeGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createPlaneGeometryFromBase,
   createPyramidGeometryFromBase,
   createPolygonFaceGeometry,
   createTextGeometryFromBase,
@@ -60,6 +61,21 @@ test('createPyramidGeometryFromBase creates a square-based pyramid', () => {
   assert.equal(Math.round(geometry.boundingBox.min.z), 3);
   assert.equal(Math.round(geometry.boundingBox.max.z), 13);
   assert.equal(Math.round(geometry.boundingBox.max.x - geometry.boundingBox.min.x), 8);
+});
+
+test('createPlaneGeometryFromBase creates a flat circle on the requested plane', () => {
+  const geometry = createPlaneGeometryFromBase(
+    new THREE.Vector3(2, 0, 0),
+    'circle',
+    new THREE.Vector2(8, 8),
+    new THREE.Vector3(1, 0, 0),
+    24,
+  );
+  geometry.computeBoundingBox();
+  assert.equal(Math.round(geometry.boundingBox.min.x), 2);
+  assert.equal(Math.round(geometry.boundingBox.max.x), 2);
+  assert.equal(Math.round(geometry.boundingBox.max.y - geometry.boundingBox.min.y), 8);
+  assert.equal(Math.round(geometry.boundingBox.max.z - geometry.boundingBox.min.z), 8);
 });
 
 test('createExtrudedPolygonGeometry creates a solid from a closed 2D face', () => {

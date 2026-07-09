@@ -39,6 +39,7 @@ import {
   createConeGeometryFromBase,
   createCylinderGeometryFromBase,
   createExtrudedPolygonGeometry,
+  createPlaneGeometryFromBase,
   createPyramidGeometryFromBase,
   createPolygonFaceGeometry,
   createTextGeometryFromBase,
@@ -130,6 +131,8 @@ let conePlacement = null;
 let conePreview = null;
 let pyramidPlacement = null;
 let pyramidPreview = null;
+let planePlacement = null;
+let planePreview = null;
 let cutPlacement = null;
 let cutPreview = null;
 let textPlacement = null;
@@ -286,6 +289,18 @@ const ui = {
     document.querySelector('#pyramid-offset-z'),
   ],
   applyPyramid: document.querySelector('#apply-pyramid'),
+  planeForm: document.querySelector('#plane-form'),
+  planeInfo: document.querySelector('#plane-info'),
+  planeShape: document.querySelector('#plane-shape'),
+  planeAxis: document.querySelector('#plane-axis'),
+  planeWidth: document.querySelector('#plane-width'),
+  planeDepth: document.querySelector('#plane-depth'),
+  planeOffsetInputs: [
+    document.querySelector('#plane-offset-x'),
+    document.querySelector('#plane-offset-y'),
+    document.querySelector('#plane-offset-z'),
+  ],
+  applyPlane: document.querySelector('#apply-plane'),
   cutForm: document.querySelector('#cut-form'),
   cutInfo: document.querySelector('#cut-info'),
   cutShape: document.querySelector('#cut-shape'),
@@ -371,6 +386,7 @@ const languageText = {
     pushpull: 'Spingi/Tira',
     solids: 'Solidi',
     booleans: 'Booleane',
+    twoD: '2D',
     box: 'Box',
     cylinder: 'Cilindro',
     cone: 'Cono',
@@ -380,6 +396,7 @@ const languageText = {
     hole: 'Foro',
     movehole: 'Sposta foro',
     line: 'Linea',
+    plane: 'Piani',
     measure: 'Misura',
     transform: 'Trasforma',
     orbit: 'Orbita',
@@ -398,6 +415,7 @@ const languageText = {
     pushpull: 'Push/Pull',
     solids: 'Solids',
     booleans: 'Booleans',
+    twoD: '2D',
     box: 'Box',
     cylinder: 'Cylinder',
     cone: 'Cone',
@@ -407,6 +425,7 @@ const languageText = {
     hole: 'Hole',
     movehole: 'Move hole',
     line: 'Line',
+    plane: 'Planes',
     measure: 'Measure',
     transform: 'Transform',
     orbit: 'Orbit',
@@ -420,7 +439,7 @@ const staticTranslations = {
     'Modello senza titolo': 'Untitled model',
     'Apri un file STL': 'Open an STL file',
     'oppure prova subito sul blocco di esempio': 'or start with the example block',
-    'Clic sinistro: seleziona Â· Rotellina premuta: orbita Â· Rotellina: zoom Â· Tasto destro: panoramica': 'Left click: select · Middle drag: orbit · Wheel: zoom · Right button: pan',
+    'Clic sinistro: seleziona · Rotellina premuta: orbita · Rotellina: zoom · Tasto destro: panoramica': 'Left click: select · Middle drag: orbit · Wheel: zoom · Right button: pan',
     ALTO: 'TOP',
     FRONTE: 'FRONT',
     STRUMENTO: 'TOOL',
@@ -471,6 +490,19 @@ const staticTranslations = {
     'Base X': 'Base X',
     'Base Y': 'Base Y',
     'Applica piramide': 'Apply pyramid',
+    'Centro piano': 'Plane center',
+    'Clicca dove vuoi creare il piano.': 'Click where you want to create the plane.',
+    "Il piano e' una faccia piatta: usa Spingi/Tira per darle volume.": 'The plane is a flat face: use Push/Pull to give it volume.',
+    'Forma piano': 'Plane shape',
+    Rettangolo: 'Rectangle',
+    Quadrato: 'Square',
+    Tondo: 'Circle',
+    'Piano della faccia': 'Face plane',
+    'Piano XY': 'XY plane',
+    'Piano YZ': 'YZ plane',
+    'Piano XZ': 'XZ plane',
+    'Larghezza / diametro': 'Width / diameter',
+    'Applica piano': 'Apply plane',
     'Figura da sottrarre': 'Shape to subtract',
     'Scegli forma e clicca dove vuoi togliere materiale.': 'Choose a shape and click where you want to remove material.',
     'Anteprima arancione: volume che verra rimosso dallo STL.': 'Orange preview: volume that will be removed from the STL.',
@@ -586,8 +618,9 @@ function applyLanguage(language) {
   setText('label[for="language-select"]', dictionary.language);
   setButtonHtml('#repair-model', 'R', dictionary.repair);
   setButtonHtml('#export-file', 'E', dictionary.export);
-  setText('.tool-menu:nth-of-type(1) .tool-menu-trigger span', dictionary.solids);
-  setText('.tool-menu:nth-of-type(2) .tool-menu-trigger span', dictionary.booleans);
+  setText('[data-menu-label="solids"]', dictionary.solids);
+  setText('[data-menu-label="booleans"]', dictionary.booleans);
+  setText('[data-menu-label="twoD"]', dictionary.twoD);
   [
     'select',
     'pushpull',
@@ -600,6 +633,7 @@ function applyLanguage(language) {
     'hole',
     'movehole',
     'line',
+    'plane',
     'measure',
     'transform',
     'orbit',

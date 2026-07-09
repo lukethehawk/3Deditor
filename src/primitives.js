@@ -58,11 +58,7 @@ export function createPyramidGeometryFromBase(center, size, height, axis = new T
     Math.max(size.y, 0.1),
   );
   const safeHeight = Math.max(height, 0.1);
-  const direction = axis.clone().normalize();
-  const baseX = new THREE.Vector3(1, 0, 0);
-  if (Math.abs(baseX.dot(direction)) > 0.95) baseX.set(0, 1, 0);
-  baseX.addScaledVector(direction, -baseX.dot(direction)).normalize();
-  const baseY = direction.clone().cross(baseX).normalize();
+  const { direction, xAxis: baseX, yAxis: baseY } = planeBasisFromNormal(axis);
   const corners = [
     center.clone().addScaledVector(baseX, -safeSize.x / 2).addScaledVector(baseY, -safeSize.y / 2),
     center.clone().addScaledVector(baseX, safeSize.x / 2).addScaledVector(baseY, -safeSize.y / 2),
@@ -78,6 +74,67 @@ export function createPyramidGeometryFromBase(center, size, height, axis = new T
     corners[2], corners[3], apex,
     corners[3], corners[0], apex,
   ].flatMap((point) => [point.x, point.y, point.z]);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return normalizeGeometry(geometry);
+}
+
+function planeBasisFromNormal(normal) {
+  const direction = normal.clone();
+  if (direction.lengthSq() < 1e-8) direction.set(0, 0, 1);
+  direction.normalize();
+  const xAxis = new THREE.Vector3(1, 0, 0);
+  if (Math.abs(xAxis.dot(direction)) > 0.95) xAxis.set(0, 1, 0);
+  xAxis.addScaledVector(direction, -xAxis.dot(direction)).normalize();
+  const yAxis = direction.clone().cross(xAxis).normalize();
+  return { direction, xAxis, yAxis };
+}
+
+export function createPlaneGeometryFromBase(
+  center,
+  shape = 'rectangle',
+  size = new THREE.Vector2(20, 20),
+  axis = new THREE.Vector3(0, 0, 1),
+  segments = 64,
+) {
+  const safeSize = new THREE.Vector2(
+    Math.max(size.x, 0.1),
+    Math.max(size.y, 0.1),
+  );
+  const { xAxis, yAxis } = planeBasisFromNormal(axis);
+  const positions = [];
+
+  const addTriangle = (a, b, c) => {
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  };
+
+  if (shape === 'circle') {
+    const radius = Math.max(safeSize.x / 2, 0.05);
+    const safeSegments = Math.max(12, Math.min(128, Math.floor(segments)));
+    for (let index = 0; index < safeSegments; index += 1) {
+      const a0 = (index / safeSegments) * Math.PI * 2;
+      const a1 = ((index + 1) / safeSegments) * Math.PI * 2;
+      const p0 = center.clone()
+        .addScaledVector(xAxis, Math.cos(a0) * radius)
+        .addScaledVector(yAxis, Math.sin(a0) * radius);
+      const p1 = center.clone()
+        .addScaledVector(xAxis, Math.cos(a1) * radius)
+        .addScaledVector(yAxis, Math.sin(a1) * radius);
+      addTriangle(center, p0, p1);
+    }
+  } else {
+    const width = safeSize.x;
+    const depth = shape === 'square' ? safeSize.x : safeSize.y;
+    const corners = [
+      center.clone().addScaledVector(xAxis, -width / 2).addScaledVector(yAxis, -depth / 2),
+      center.clone().addScaledVector(xAxis, width / 2).addScaledVector(yAxis, -depth / 2),
+      center.clone().addScaledVector(xAxis, width / 2).addScaledVector(yAxis, depth / 2),
+      center.clone().addScaledVector(xAxis, -width / 2).addScaledVector(yAxis, depth / 2),
+    ];
+    addTriangle(corners[0], corners[1], corners[2]);
+    addTriangle(corners[0], corners[2], corners[3]);
+  }
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   return normalizeGeometry(geometry);

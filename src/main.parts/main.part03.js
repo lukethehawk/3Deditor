@@ -154,7 +154,7 @@ function applyPrimitiveGeometry(geometry, operation, successMessage) {
   }
 }
 
-function appendGeometryToModel(geometry, successMessage) {
+function appendGeometryToModel(geometry, successMessage, pendingMessage = 'Applicazione geometria in corso...') {
   if (!model) {
     setModelGeometry(geometry, false);
     fitView();
@@ -162,7 +162,7 @@ function appendGeometryToModel(geometry, successMessage) {
     return true;
   }
 
-  setStatus('Applicazione testo in corso...');
+  setStatus(pendingMessage);
   snapshot();
   try {
     const resultGeometry = combineGeometries([model.geometry, geometry]);
@@ -449,6 +449,72 @@ function applyPyramid() {
   );
 }
 
+function planeDirectionFromState() {
+  if (!planePlacement) return new THREE.Vector3(0, 0, 1);
+  return axisDirectionFromPlacement(planePlacement, ui.planeAxis.value, 'add');
+}
+
+function planeGeometryFromState() {
+  if (!planePlacement) return null;
+  const width = parseDecimal(ui.planeWidth.value, 0);
+  const depth = parseDecimal(ui.planeDepth.value, 0);
+  if (!(width > 0) || !(depth > 0)) return null;
+  const base = planePlacement.basePoint.clone().add(inputVector(ui.planeOffsetInputs));
+  return createPlaneGeometryFromBase(
+    base,
+    ui.planeShape.value,
+    new THREE.Vector2(width, depth),
+    planeDirectionFromState(),
+    64,
+  );
+}
+
+function drawPlanePreview() {
+  if (!planePlacement || activeTool !== 'plane') return;
+  const geometry = planeGeometryFromState();
+  if (!geometry) {
+    ui.applyPlane.disabled = true;
+    return;
+  }
+  planePreview = setPreviewMesh(planePreview, geometry, 0x1679b8, 'plane-preview');
+  ui.applyPlane.disabled = false;
+}
+
+function setPlanePoint(pick) {
+  planePlacement = {
+    basePoint: pick.point.clone(),
+    normal: pick.normal.clone(),
+  };
+  ui.planeInfo.textContent = `Centro piano X ${pick.point.x.toFixed(2)}, Y ${pick.point.y.toFixed(2)}, Z ${pick.point.z.toFixed(2)} mm - snap ${pick.snapKind}.`;
+  ui.planeOffsetInputs.forEach((input) => {
+    input.value = '0';
+  });
+  drawPlanePreview();
+  setStatus('Piano impostato. Scegli forma, dimensioni e asse, poi applica.');
+}
+
+function planeAt(clientX, clientY) {
+  const pick = pickWorkPoint(clientX, clientY);
+  if (!pick) {
+    setStatus('Clicca sul piano di lavoro o su un solido.');
+    return;
+  }
+  setPlanePoint(pick);
+}
+
+function applyPlane() {
+  const geometry = planeGeometryFromState();
+  if (!geometry) {
+    setStatus('Imposta prima centro, forma e dimensioni del piano.');
+    return;
+  }
+  const applied = appendGeometryToModel(geometry, 'Piano applicato al modello.', 'Applicazione piano in corso...');
+  if (applied) {
+    clearPlanePlacement();
+    setTool('select');
+  }
+}
+
 function updateCutFields() {
   const isCylinder = ui.cutShape.value === 'cylinder';
   ui.cutBoxFields.hidden = isCylinder;
@@ -678,7 +744,7 @@ async function applyText() {
 
     setStatus('Applicazione testo in rilievo in corso...');
     await waitForNextFrame();
-    appendGeometryToModel(geometry, 'Testo 3D applicato al solido.');
+    appendGeometryToModel(geometry, 'Testo 3D applicato al solido.', 'Applicazione testo in corso...');
   } finally {
     hideBusy();
     textApplyInProgress = false;

@@ -216,6 +216,24 @@ document.querySelector('#reset-pyramid').addEventListener('click', () => {
   setStatus('Clicca il centro di appoggio della piramide.');
 });
 [
+  ui.planeShape,
+  ui.planeAxis,
+  ui.planeWidth,
+  ui.planeDepth,
+  ...ui.planeOffsetInputs,
+].forEach((input) => {
+  input.addEventListener('input', drawPlanePreview);
+  input.addEventListener('change', drawPlanePreview);
+});
+ui.applyPlane.addEventListener('click', (event) => {
+  event.preventDefault();
+  applyPlane();
+});
+document.querySelector('#reset-plane').addEventListener('click', () => {
+  clearPlanePlacement();
+  setStatus('Piani: clicca il centro della faccia piatta.');
+});
+[
   ui.cutShape,
   ui.cutWidth,
   ui.cutDepth,
@@ -339,6 +357,7 @@ canvas.addEventListener('pointerup', (event) => {
     else if (activeTool === 'cylinder') cylinderAt(event.clientX, event.clientY);
     else if (activeTool === 'cone') coneAt(event.clientX, event.clientY);
     else if (activeTool === 'pyramid') pyramidAt(event.clientX, event.clientY);
+    else if (activeTool === 'plane') planeAt(event.clientX, event.clientY);
     else if (activeTool === 'cut') cutAt(event.clientX, event.clientY);
     else if (activeTool === 'text') textAt(event.clientX, event.clientY);
     else if (activeTool === 'line') sketchAt(event.clientX, event.clientY);
@@ -381,6 +400,7 @@ window.addEventListener('keydown', (event) => {
     c: 'cylinder',
     v: 'cone',
     i: 'pyramid',
+    n: 'plane',
     t: 'cut',
     a: 'text',
     l: 'line',
