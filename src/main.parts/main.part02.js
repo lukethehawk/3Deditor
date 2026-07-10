@@ -193,7 +193,7 @@ function updateModelActions() {
   ui.exportButton.disabled = !hasModel;
   ui.repairModelButton.disabled = !hasModel;
   ui.removeModelButton.disabled = !hasModel;
-  ui.emptyState.hidden = hasModel;
+  if (ui.emptyState) ui.emptyState.hidden = hasModel;
 }
 
 function setModelGeometry(geometry, recordHistory = true, options = {}) {
