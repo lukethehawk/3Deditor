@@ -20,7 +20,7 @@ function createWindow() {
   window.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   if (smokeTest) {
     window.webContents.once('did-finish-load', () => {
-      console.log('Forma 3D desktop loaded');
+      console.log('Forma3D desktop loaded');
       app.quit();
     });
   }

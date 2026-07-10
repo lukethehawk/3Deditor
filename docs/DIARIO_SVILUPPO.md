@@ -1,8 +1,8 @@
-# Development Diary - Forma 3D
+# Development Diary - Forma3D
 
 Last updated: 2026-07-09
 
-This document is the technical memory of Forma 3D. Read it together with
+This document is the technical memory of Forma3D. Read it together with
 `README.md` before making changes, especially when touching mesh logic, tool
 state, selection, booleans, snapping or export.
 
@@ -11,7 +11,7 @@ state, selection, booleans, snapping or export.
 
 ## Current Operating Notes - 2026-07-09
 
-Recent work consolidated Forma 3D as an STL mesh editor with separate face and
+Recent work consolidated Forma3D as an STL mesh editor with separate face and
 connected-body workflows:
 
 - English is the primary UI and documentation language; Italian remains
@@ -41,7 +41,7 @@ commit and push to GitHub unless explicitly told not to.
 
 ## Project Goal
 
-Forma 3D is a local and web STL editor for users who know SketchUp-like
+Forma3D is a local and web STL editor for users who know SketchUp-like
 workflows and want practical edits to 3D-printing models without uploading files
 to external services.
 
@@ -105,7 +105,7 @@ On PowerShell, use `npm.cmd` if Windows execution policy blocks `npm.ps1`.
 - `src/number-format.js`: comma/dot decimal parsing and formatting.
 - `test/*.test.js`: unit tests for pure logic.
 - `electron/main.cjs`: Electron desktop window.
-- `Avvia Forma 3D.bat`: Windows launcher.
+- `Avvia Forma3D.bat`: Windows launcher.
 
 ## Important Rule: `src/main.js`
 
@@ -187,7 +187,7 @@ clears history, calls `setModelGeometry()` and fits the view.
 
 `exportStl()` writes binary STL as `<name>-modificato.stl`.
 
-STL has no unit metadata; Forma 3D treats units as millimeters.
+STL has no unit metadata; Forma3D treats units as millimeters.
 
 ## Mesh Repair
 
@@ -355,7 +355,7 @@ coplanar face centers, avoiding noisy STL triangulation diagonals.
 <details>
 <summary><strong>Italiano - diario tecnico storico</strong></summary>
 
-# Diario di sviluppo - Forma 3D
+# Diario di sviluppo - Forma3D
 
 Ultimo aggiornamento: 2026-07-09
 
@@ -396,7 +396,7 @@ Regola di lavoro concordata: dopo una modifica completa, se `npm test` e
 
 ## Obiettivo del progetto
 
-Forma 3D e' un editor STL locale pensato per chi conosce SketchUp e vuole fare
+Forma3D e' un editor STL locale pensato per chi conosce SketchUp e vuole fare
 modifiche semplici a modelli da stampa 3D senza caricare file online.
 
 Il progetto non prova a ricostruire un CAD parametrico completo da STL. Tratta
@@ -465,7 +465,7 @@ Su PowerShell puo' essere necessario usare `npm.cmd` se l'esecuzione di
 - `src/number-format.js`: parsing e formattazione numeri con virgola/punto.
 - `test/*.test.js`: test unitari delle parti pure.
 - `electron/main.cjs`: finestra desktop Electron.
-- `Avvia Forma 3D.bat`: avvio rapido su Windows.
+- `Avvia Forma3D.bat`: avvio rapido su Windows.
 
 ## Regola importante su `src/main.js`
 
@@ -536,7 +536,7 @@ Il workflow `.github/workflows/pages.yml` e' la fonte corretta di deploy:
 7. deploy su GitHub Pages.
 
 `vite.config.js` usa `base: './'`, cosi gli asset generati in `dist` restano
-relativi e funzionano sotto `https://lukethehawk.github.io/3Deditor/`.
+relativi e funzionano sotto `https://lukethehawk.github.io/Forma3D/`.
 
 Se dopo il push la pagina resta senza stile, controllare nelle impostazioni del
 repository GitHub che Pages usi **GitHub Actions** come sorgente e non

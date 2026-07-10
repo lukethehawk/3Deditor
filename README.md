@@ -1,11 +1,11 @@
 <div align="center">
 
-# Forma 3D
+# Forma3D
 
 **A local and web STL editor inspired by SketchUp workflows.**
 
-[![App](https://img.shields.io/badge/Open-Web_App-1f83bd?style=for-the-badge)](https://lukethehawk.github.io/3Deditor/)
-[![Wiki](https://img.shields.io/badge/Open-Wiki-2e9a52?style=for-the-badge)](https://github.com/lukethehawk/3Deditor/wiki)
+[![App](https://img.shields.io/badge/Open-Web_App-1f83bd?style=for-the-badge)](https://lukethehawk.github.io/Forma3D/)
+[![Wiki](https://img.shields.io/badge/Open-Wiki-2e9a52?style=for-the-badge)](https://github.com/lukethehawk/Forma3D/wiki)
 [![Docs](https://img.shields.io/badge/Read-Development_Diary-e46f2b?style=for-the-badge)](docs/DIARIO_SVILUPPO.md)
 
 ![Three.js](https://img.shields.io/badge/Three.js-3D-black?logo=three.js)
@@ -26,7 +26,7 @@
 
 ## English
 
-Forma 3D is an STL editor for small 3D-printing model edits. It runs locally as
+Forma3D is an STL editor for small 3D-printing model edits. It runs locally as
 an Electron app and also as a GitHub Pages web app. Files are handled in the
 browser/app: the workflow is designed around direct mesh editing, not uploading
 models to external services.
@@ -36,15 +36,15 @@ models to external services.
 
 ### Try It
 
-- Web app: https://lukethehawk.github.io/3Deditor/
-- Wiki: https://github.com/lukethehawk/3Deditor/wiki
+- Web app: https://lukethehawk.github.io/Forma3D/
+- Wiki: https://github.com/lukethehawk/Forma3D/wiki
 
 ### Local Start
 
 Windows shortcut:
 
 ```text
-Avvia Forma 3D.bat
+Avvia Forma3D.bat
 ```
 
 From a cloned repository:
@@ -189,7 +189,7 @@ Pages is configured to deploy from **GitHub Actions**.
 
 ### Current Limits
 
-Forma 3D edits STL meshes. STL has no CAD history, constraints or parametric
+Forma3D edits STL meshes. STL has no CAD history, constraints or parametric
 features. Some operations create separate bodies inside the same STL; slicers
 usually handle them, but this is not always the same as a perfect CSG union.
 
@@ -199,7 +199,7 @@ usually handle them, but this is not always the same as a perfect CSG union.
 
 ## Italiano
 
-Forma 3D e' un editor STL per piccole modifiche a modelli destinati alla stampa
+Forma3D e' un editor STL per piccole modifiche a modelli destinati alla stampa
 3D. Funziona come app desktop Electron e anche come app web su GitHub Pages. I
 file vengono gestiti localmente nel browser/app: il flusso e' pensato per
 modifiche dirette su mesh, non per caricare modelli su servizi esterni.
@@ -210,15 +210,15 @@ modifiche dirette su mesh, non per caricare modelli su servizi esterni.
 
 ### Prova l'app
 
-- App web: https://lukethehawk.github.io/3Deditor/
-- Wiki: https://github.com/lukethehawk/3Deditor/wiki
+- App web: https://lukethehawk.github.io/Forma3D/
+- Wiki: https://github.com/lukethehawk/Forma3D/wiki
 
 ### Avvio locale
 
 Scorciatoia Windows:
 
 ```text
-Avvia Forma 3D.bat
+Avvia Forma3D.bat
 ```
 
 Da repository clonato:
@@ -363,7 +363,7 @@ GitHub Pages usi **GitHub Actions** come sorgente di deploy.
 
 ### Limiti attuali
 
-Forma 3D modifica mesh STL. STL non contiene cronologia CAD, vincoli o feature
+Forma3D modifica mesh STL. STL non contiene cronologia CAD, vincoli o feature
 parametriche. Alcune operazioni creano corpi separati nello stesso STL; molti
 slicer li gestiscono correttamente, ma non sempre equivalgono a una unione CSG
 perfetta.
