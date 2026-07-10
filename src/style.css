@@ -271,6 +271,15 @@ button {
   position: relative;
 }
 
+.tool-menu::after {
+  content: "";
+  width: 8px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+}
+
 .tool-menu-trigger {
   width: 100%;
 }
@@ -401,8 +410,8 @@ button {
 }
 
 .view-cube {
-  width: 96px;
-  height: 78px;
+  width: 108px;
+  height: 88px;
   position: absolute;
   right: 20px;
   top: 20px;
@@ -424,26 +433,26 @@ button {
 }
 
 .view-cube [data-view="top"] {
-  width: 54px;
+  width: 78px;
   height: 24px;
-  top: 0;
-  left: 21px;
-  transform: skewX(-34deg);
+  top: 7px;
+  left: 16px;
+  clip-path: polygon(23% 0, 100% 0, 77% 100%, 0 100%);
 }
 
 .view-cube [data-view="front"] {
-  width: 54px;
+  width: 60px;
   height: 42px;
-  left: 4px;
-  top: 25px;
+  left: 16px;
+  top: 31px;
 }
 
 .view-cube [data-view="iso"] {
-  width: 34px;
-  height: 42px;
-  left: 59px;
-  top: 25px;
-  transform: skewY(-34deg);
+  width: 24px;
+  height: 60px;
+  left: 76px;
+  top: 13px;
+  clip-path: polygon(0 30%, 100% 0, 100% 70%, 0 100%);
 }
 
 .axis-labels {
