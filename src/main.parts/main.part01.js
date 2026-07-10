@@ -128,6 +128,7 @@ const measureColors = {
   y: 0x2e9a52,
   z: 0x2477bd,
 };
+let pointMarkerTexture = null;
 
 let model = null;
 let edges = null;

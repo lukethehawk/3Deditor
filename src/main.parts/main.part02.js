@@ -1053,7 +1053,7 @@ function drawSnapIndicator(pick) {
   clearSnapIndicator();
   if (!pick || pick.snapKind === 'griglia' || pick.snapKind === 'superficie') return;
   const radius = Math.max(model?.geometry.boundingSphere?.radius ?? 50, 30) * 0.006;
-  snapIndicator = createPointMarker(pick.point, snapColor(pick.snapKind), radius);
+  snapIndicator = createPointMarker(pick.point, snapColor(pick.snapKind), radius, { pixelSize: 14 });
   addTransientOverlay(snapIndicator, 'snap-indicator');
 }
 
@@ -1316,11 +1316,44 @@ function createMeasureLine(start, end, color, dashed = false) {
   return line;
 }
 
-function createPointMarker(point, color, radius) {
-  const marker = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 18, 12),
-    new THREE.MeshBasicMaterial({ color, depthTest: false }),
+function createPointMarkerTexture() {
+  if (pointMarkerTexture) return pointMarkerTexture;
+  const markerCanvas = document.createElement('canvas');
+  markerCanvas.width = 64;
+  markerCanvas.height = 64;
+  const context = markerCanvas.getContext('2d');
+  context.clearRect(0, 0, 64, 64);
+  context.beginPath();
+  context.arc(32, 32, 23, 0, Math.PI * 2);
+  context.fillStyle = '#ffffff';
+  context.fill();
+  context.lineWidth = 8;
+  context.strokeStyle = '#172637';
+  context.stroke();
+  pointMarkerTexture = new THREE.CanvasTexture(markerCanvas);
+  pointMarkerTexture.colorSpace = THREE.SRGBColorSpace;
+  return pointMarkerTexture;
+}
+
+function screenMarkerScale(pixelSize) {
+  const viewportHeight = Math.max(renderer.domElement.clientHeight || viewport.clientHeight || 1, 1);
+  return (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5) * pixelSize) / viewportHeight;
+}
+
+function createPointMarker(point, color, radius = 0.5, options = {}) {
+  const pixelSize = options.pixelSize ?? THREE.MathUtils.clamp(radius * 24, 10, 13);
+  const marker = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: createPointMarkerTexture(),
+      color,
+      depthTest: false,
+      depthWrite: false,
+      sizeAttenuation: false,
+      transparent: true,
+    }),
   );
+  const scale = screenMarkerScale(pixelSize);
+  marker.scale.set(scale, scale, 1);
   marker.position.copy(point);
   marker.renderOrder = 11;
   return marker;
