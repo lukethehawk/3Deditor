@@ -600,6 +600,7 @@ const languageText = {
 const staticTranslations = {
   en: {
     'Modello senza titolo': 'Untitled model',
+    'Nessun modello': 'No model',
     Strumenti: 'Tools',
     'Seleziona (Spazio)': 'Select (Space)',
     'Spingi/Tira (P)': 'Push/Pull (P)',
@@ -1059,6 +1060,7 @@ function applyLanguage(language) {
     'zoomfit',
   ].forEach((tool) => setToolText(tool, dictionary[tool]));
   setText('#objects-toggle span', dictionary.objects);
+  if (!model) ui.fileName.textContent = t('Nessun modello');
   renderFileInfo();
   renderObjectsDrawer();
   updateInspector();

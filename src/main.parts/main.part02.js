@@ -424,7 +424,7 @@ function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nu
   sourceStlName = 'modello-senza-titolo.stl';
   currentModelInfo = null;
   renderFileInfo();
-  ui.fileName.textContent = 'Nessun modello';
+  ui.fileName.textContent = t('Nessun modello');
   updateModelActions();
   refreshObjectItems();
   setObjectsDrawerOpen(false);
