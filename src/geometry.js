@@ -517,6 +517,360 @@ export function pushPullGeometry(geometry, region, distance) {
   return result;
 }
 
+function planeAxisValue(point, axis) {
+  return axis === 0 ? point.x : axis === 1 ? point.y : point.z;
+}
+
+function setPlaneAxisValue(point, axis, value) {
+  if (axis === 0) point.x = value;
+  else if (axis === 1) point.y = value;
+  else point.z = value;
+}
+
+function interpolatePlanePoint(a, b, da, db, axis, planePosition) {
+  const denominator = da - db;
+  const t = Math.abs(denominator) <= 1e-12 ? 0 : da / denominator;
+  const point = a.clone().lerp(b, THREE.MathUtils.clamp(t, 0, 1));
+  setPlaneAxisValue(point, axis, planePosition);
+  return point;
+}
+
+function clipTriangleToHalfSpace(points, distances, axis, planePosition, tolerance) {
+  const clipped = [];
+  const intersections = [];
+
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const currentDistance = distances[index];
+    const nextDistance = distances[(index + 1) % distances.length];
+    const currentInside = currentDistance >= -tolerance;
+    const nextInside = nextDistance >= -tolerance;
+
+    if (currentInside && nextInside) {
+      clipped.push(next.clone());
+    } else if (currentInside && !nextInside) {
+      const intersection = interpolatePlanePoint(current, next, currentDistance, nextDistance, axis, planePosition);
+      clipped.push(intersection);
+      intersections.push(intersection);
+    } else if (!currentInside && nextInside) {
+      const intersection = interpolatePlanePoint(current, next, currentDistance, nextDistance, axis, planePosition);
+      clipped.push(intersection, next.clone());
+      intersections.push(intersection);
+    }
+  }
+
+  return { clipped, intersections };
+}
+
+function pushTrianglePositions(positions, a, b, c, areaTolerance) {
+  const areaSquared = new THREE.Vector3()
+    .subVectors(b, a)
+    .cross(new THREE.Vector3().subVectors(c, a))
+    .lengthSq() * 0.25;
+  if (areaSquared <= areaTolerance) return false;
+  positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  return true;
+}
+
+function projection2D(point, axis) {
+  if (axis === 0) return { x: point.y, y: point.z };
+  if (axis === 1) return { x: point.x, y: point.z };
+  return { x: point.x, y: point.y };
+}
+
+function projectedArea(points, axis) {
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = projection2D(points[index], axis);
+    const next = projection2D(points[(index + 1) % points.length], axis);
+    area += current.x * next.y - next.x * current.y;
+  }
+  return area * 0.5;
+}
+
+function pointInTriangle2D(point, a, b, c, sign) {
+  const edge = (p1, p2, p) =>
+    ((p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)) * sign;
+  const tolerance = -1e-9;
+  return edge(a, b, point) >= tolerance
+    && edge(b, c, point) >= tolerance
+    && edge(c, a, point) >= tolerance;
+}
+
+function triangulateLoop(loop, axis, desiredNormalSign) {
+  const unique = [];
+  const seen = new Set();
+  for (const point of loop) {
+    const key = pointKey(point);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(point.clone());
+  }
+  if (unique.length < 3) return [];
+
+  const projectionNormalSign = axis === 1 ? -1 : 1;
+  const desiredAreaSign = desiredNormalSign * projectionNormalSign;
+  const area = projectedArea(unique, axis);
+  if (Math.abs(area) < 1e-10) return [];
+  if (Math.sign(area) !== Math.sign(desiredAreaSign)) unique.reverse();
+
+  const vertices = unique.map((point, index) => ({
+    index,
+    point,
+    projected: projection2D(point, axis),
+  }));
+  const triangles = [];
+  const sign = Math.sign(projectedArea(vertices.map((vertex) => vertex.point), axis)) || 1;
+  let guard = vertices.length * vertices.length;
+
+  while (vertices.length > 3 && guard > 0) {
+    guard -= 1;
+    let clipped = false;
+    for (let index = 0; index < vertices.length; index += 1) {
+      const previous = vertices[(index - 1 + vertices.length) % vertices.length];
+      const current = vertices[index];
+      const next = vertices[(index + 1) % vertices.length];
+      const cross = (
+        (current.projected.x - previous.projected.x) * (next.projected.y - current.projected.y)
+        - (current.projected.y - previous.projected.y) * (next.projected.x - current.projected.x)
+      ) * sign;
+      if (cross <= 1e-10) continue;
+
+      const containsPoint = vertices.some((candidate, candidateIndex) => {
+        if (
+          candidateIndex === index
+          || candidateIndex === (index - 1 + vertices.length) % vertices.length
+          || candidateIndex === (index + 1) % vertices.length
+        ) {
+          return false;
+        }
+        return pointInTriangle2D(candidate.projected, previous.projected, current.projected, next.projected, sign);
+      });
+      if (containsPoint) continue;
+
+      triangles.push([previous.point, current.point, next.point]);
+      vertices.splice(index, 1);
+      clipped = true;
+      break;
+    }
+    if (!clipped) break;
+  }
+
+  if (vertices.length === 3) {
+    triangles.push([vertices[0].point, vertices[1].point, vertices[2].point]);
+  } else if (!triangles.length && unique.length >= 3) {
+    for (let index = 1; index < unique.length - 1; index += 1) {
+      triangles.push([unique[0], unique[index], unique[index + 1]]);
+    }
+  }
+
+  return triangles;
+}
+
+function buildCutLoops(segments, tolerance = DEFAULT_TOLERANCE) {
+  const vertices = [];
+  const vertexByKey = new Map();
+  const adjacency = new Map();
+  const edgeKeys = new Set();
+
+  const addVertex = (point) => {
+    const key = pointKey(point, tolerance);
+    if (!vertexByKey.has(key)) {
+      vertexByKey.set(key, vertices.length);
+      vertices.push(point.clone());
+    }
+    return vertexByKey.get(key);
+  };
+
+  for (const segment of segments) {
+    const a = addVertex(segment[0]);
+    const b = addVertex(segment[1]);
+    if (a === b) continue;
+    const key = orderedEdgeKey(a, b);
+    if (edgeKeys.has(key)) continue;
+    edgeKeys.add(key);
+    if (!adjacency.has(a)) adjacency.set(a, new Set());
+    if (!adjacency.has(b)) adjacency.set(b, new Set());
+    adjacency.get(a).add(b);
+    adjacency.get(b).add(a);
+  }
+
+  const unused = new Set(edgeKeys);
+  const loops = [];
+  let openChains = 0;
+
+  while (unused.size) {
+    const [startKey] = unused;
+    const [start, next] = startKey.split('|').map(Number);
+    unused.delete(startKey);
+    const loop = [start, next];
+    let previous = start;
+    let current = next;
+
+    while (current !== start) {
+      const candidates = [...(adjacency.get(current) ?? [])]
+        .filter((candidate) => candidate !== previous && unused.has(orderedEdgeKey(current, candidate)));
+      if (!candidates.length) {
+        openChains += 1;
+        break;
+      }
+      const candidate = candidates[0];
+      unused.delete(orderedEdgeKey(current, candidate));
+      previous = current;
+      current = candidate;
+      if (current !== start) loop.push(current);
+    }
+
+    if (current === start && loop.length >= 3) {
+      loops.push(loop.map((index) => vertices[index]));
+    }
+  }
+
+  return { loops, openChains };
+}
+
+export function cutPlaneGeometry(geometry, options = {}) {
+  const position = geometry.getAttribute('position');
+  if (!position) return null;
+
+  const axisMap = { x: 0, y: 1, z: 2 };
+  const axis = axisMap[options.axis] ?? 0;
+  const planePosition = Number(options.position);
+  if (!Number.isFinite(planePosition)) return null;
+
+  const keepSide = options.keepSide === 'negative' ? 'negative' : 'positive';
+  const cap = options.cap !== false;
+  const tolerance = Math.max(options.tolerance ?? DEFAULT_TOLERANCE, 1e-8);
+  const areaTolerance = Math.max(options.areaTolerance ?? tolerance * tolerance, 1e-16);
+  const keepSign = keepSide === 'positive' ? 1 : -1;
+  const positions = [];
+  const segments = [];
+  const total = triangleCount(geometry);
+  let keptTriangles = 0;
+  let removedTriangles = 0;
+  let clippedTriangles = 0;
+  let outputTriangles = 0;
+
+  for (let triangle = 0; triangle < total; triangle += 1) {
+    const points = [0, 1, 2].map((corner) => vertexAt(geometry, triangle, corner, new THREE.Vector3()));
+    const distances = points.map((point) => keepSign * (planeAxisValue(point, axis) - planePosition));
+    const insideCount = distances.filter((distance) => distance >= -tolerance).length;
+
+    if (insideCount === 3) {
+      if (pushTrianglePositions(positions, points[0], points[1], points[2], areaTolerance)) {
+        keptTriangles += 1;
+        outputTriangles += 1;
+      }
+      continue;
+    }
+    if (insideCount === 0) {
+      removedTriangles += 1;
+      continue;
+    }
+
+    clippedTriangles += 1;
+    const { clipped, intersections } = clipTriangleToHalfSpace(points, distances, axis, planePosition, tolerance);
+    for (let index = 1; index < clipped.length - 1; index += 1) {
+      if (pushTrianglePositions(positions, clipped[0], clipped[index], clipped[index + 1], areaTolerance)) {
+        outputTriangles += 1;
+      }
+    }
+    if (intersections.length >= 2) {
+      segments.push([intersections[0], intersections[intersections.length - 1]]);
+    }
+  }
+
+  let capTriangles = 0;
+  let capLoops = 0;
+  let openChains = 0;
+  if (cap && segments.length) {
+    const loops = buildCutLoops(segments, tolerance);
+    capLoops = loops.loops.length;
+    openChains = loops.openChains;
+    const capNormalSign = keepSide === 'positive' ? -1 : 1;
+    for (const loop of loops.loops) {
+      for (const triangle of triangulateLoop(loop, axis, capNormalSign)) {
+        if (pushTrianglePositions(positions, triangle[0], triangle[1], triangle[2], areaTolerance)) {
+          capTriangles += 1;
+          outputTriangles += 1;
+        }
+      }
+    }
+  }
+
+  if (!positions.length) return null;
+  const result = new THREE.BufferGeometry();
+  result.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  result.computeVertexNormals();
+  result.computeBoundingBox();
+  result.computeBoundingSphere();
+
+  return {
+    geometry: result,
+    report: {
+      capLoops,
+      capTriangles,
+      clippedTriangles,
+      keptTriangles,
+      openChains,
+      outputTriangles,
+      removedTriangles,
+      sourceTriangles: total,
+    },
+  };
+}
+
+export function removeMiddleSectionGeometry(geometry, options = {}) {
+  const axisMap = { x: 0, y: 1, z: 2 };
+  const axis = axisMap[options.axis] ?? 0;
+  const start = Number(options.start);
+  const end = Number(options.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+
+  const axisKey = ['x', 'y', 'z'][axis];
+  const negative = cutPlaneGeometry(geometry, {
+    axis: axisKey,
+    cap: false,
+    keepSide: 'negative',
+    position: start,
+  });
+  const positive = cutPlaneGeometry(geometry, {
+    axis: axisKey,
+    cap: false,
+    keepSide: 'positive',
+    position: end,
+  });
+  if (!negative?.geometry || !positive?.geometry) {
+    negative?.geometry?.dispose();
+    positive?.geometry?.dispose();
+    return null;
+  }
+
+  const gap = end - start;
+  const translation = new THREE.Vector3();
+  setPlaneAxisValue(translation, axis, -gap);
+  positive.geometry.translate(translation.x, translation.y, translation.z);
+
+  const result = combineGeometries([negative.geometry, positive.geometry]);
+  const report = {
+    gap,
+    negativeTriangles: triangleCount(negative.geometry),
+    positiveTriangles: triangleCount(positive.geometry),
+    outputTriangles: result ? triangleCount(result) : 0,
+    removedTriangles: negative.report.removedTriangles + positive.report.removedTriangles,
+    sourceTriangles: triangleCount(geometry),
+  };
+  negative.geometry.dispose();
+  positive.geometry.dispose();
+  if (!result) return null;
+
+  return {
+    geometry: result,
+    report,
+  };
+}
+
 export function createPushPullRegionGeometry(geometry, region, distance) {
   const positions = [];
   const sourcePosition = geometry.getAttribute('position');

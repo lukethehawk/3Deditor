@@ -113,6 +113,19 @@ function clearCutPlacement() {
   ui.applyCut.disabled = true;
 }
 
+function clearShortenPlacement() {
+  if (shortenPreview) {
+    scene.remove(shortenPreview);
+    disposeObject(shortenPreview);
+    shortenPreview = null;
+    requestRender();
+  }
+  if (ui.shortenInfo) {
+    ui.shortenInfo.textContent = t('Accorcia il modello con un piano di taglio e richiudi la superficie.');
+  }
+  if (ui.applyShorten) ui.applyShorten.disabled = !model;
+}
+
 function clearTextPlacement() {
   textPreviewRequest += 1;
   textPlacement = null;
@@ -325,6 +338,7 @@ function setModelGeometry(geometry, recordHistory = true, options = {}) {
   clearGearPlacement();
   clearPlanePlacement();
   clearCutPlacement();
+  clearShortenPlacement();
   clearTextPlacement();
   clearTransformPreview();
   if (!preserveSketch) clearSketch();
@@ -407,6 +421,7 @@ function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nu
   clearGearPlacement();
   clearPlanePlacement();
   clearCutPlacement();
+  clearShortenPlacement();
   clearTextPlacement();
   clearTransformPreview();
   clearSketch();
@@ -822,6 +837,11 @@ function updateInspector() {
       description: 'Crea un box o un cilindro di taglio e sottrailo dal file STL caricato.',
       hint: 'Sottrai: clicca sull\'STL o sul piano, regola la figura arancione e applica.',
     },
+    shorten: {
+      title: 'Accorcia',
+      description: 'Taglia lungo X, Y o Z mantenendo invariato il lato scelto. Utile per ridurre profondita o lunghezza di STL funzionali.',
+      hint: 'Accorcia: scegli asse e nuova lunghezza, poi applica il taglio.',
+    },
     text: {
       title: 'Testo 3D',
       description: 'Clicca il punto di partenza, scrivi il testo e regola font, profondita, larghezza ed effetti.',
@@ -873,14 +893,15 @@ function updateInspector() {
   ui.gearForm.hidden = activeTool !== 'gear';
   ui.planeForm.hidden = activeTool !== 'plane';
   ui.cutForm.hidden = activeTool !== 'cut';
+  ui.shortenForm.hidden = activeTool !== 'shorten';
   ui.textForm.hidden = activeTool !== 'text';
   ui.sketchForm.hidden = activeTool !== 'line';
   ui.measurePanel.hidden = activeTool !== 'measure';
   ui.transformForm.hidden = activeTool !== 'transform';
-  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line', 'transform'].includes(activeTool);
+  document.querySelector('#selection-info').hidden = ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'shorten', 'text', 'line', 'transform'].includes(activeTool);
   ui.inspector.classList.toggle(
     'open',
-    ['select', 'pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line', 'measure', 'transform'].includes(activeTool),
+    ['select', 'pushpull', 'hole', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'shorten', 'text', 'line', 'measure', 'transform'].includes(activeTool),
   );
   updateMeasureBoxMode();
 }
@@ -899,6 +920,7 @@ function setTool(tool) {
   if (activeTool === 'gear' && tool !== 'gear') clearGearPlacement();
   if (activeTool === 'plane' && tool !== 'plane') clearPlanePlacement();
   if (activeTool === 'cut' && tool !== 'cut') clearCutPlacement();
+  if (activeTool === 'shorten' && tool !== 'shorten') clearShortenPlacement();
   if (activeTool === 'text' && tool !== 'text') clearTextPlacement();
   if (activeTool === 'line' && tool !== 'line') clearSketchCurrentLine();
   if (activeTool === 'transform' && tool !== 'transform') clearTransformPreview();
@@ -950,6 +972,11 @@ function setTool(tool) {
     clearCutPlacement();
     updateCutFields();
   }
+  if (tool === 'shorten') {
+    clearSelection();
+    resetShortenDefaults();
+    drawShortenPreview();
+  }
   if (tool === 'text') {
     clearSelection();
     clearTextPlacement();
@@ -972,7 +999,7 @@ function setTool(tool) {
       ? 'grab'
         : tool === 'pan'
           ? 'move'
-          : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line'].includes(tool)
+          : ['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'shorten', 'text', 'line'].includes(tool)
             ? 'crosshair'
             : 'default';
   updateInspector();
@@ -990,6 +1017,7 @@ function setTool(tool) {
     gear: 'Ingranaggio: clicca il centro base, poi regola denti, modulo, spessore e foro.',
     plane: 'Piani: clicca il centro, scegli forma e dimensioni, poi applica la faccia piatta.',
     cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
+    shorten: 'Accorcia: regola asse, lato mantenuto e nuova lunghezza.',
     text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
     line: 'Linea: crea guide indipendenti. Gli altri strumenti si agganciano a estremi, midpoint e segmenti.',
     measure: 'Misura: clicca il primo punto.',
@@ -1187,7 +1215,7 @@ function drawSnapIndicator(pick) {
 }
 
 function updateSnapIndicator(clientX, clientY) {
-  if (!['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'text', 'line'].includes(activeTool)) {
+  if (!['hole', 'measure', 'movehole', 'box', 'cylinder', 'cone', 'pyramid', 'gear', 'plane', 'cut', 'shorten', 'text', 'line'].includes(activeTool)) {
     clearSnapIndicator();
     return;
   }

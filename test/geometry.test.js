@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {
   collectConnectedComponents,
   combineGeometries,
+  cutPlaneGeometry,
   createPushPullRegionGeometry,
   createDisplayEdgesGeometry,
   collectDisplaySnapPoints,
@@ -16,6 +17,7 @@ import {
   regionHasCoplanarSupport,
   regionHasOpenBoundary,
   repairMeshGeometry,
+  removeMiddleSectionGeometry,
   transformTrianglesInGeometry,
   triangleCount,
 } from '../src/geometry.js';
@@ -152,6 +154,79 @@ test('modelComplexityInfo defers connected components above one million triangle
   assert.equal(info.isLarge, true);
   assert.equal(info.isVeryLarge, true);
   assert.equal(info.skipConnectedComponents, true);
+});
+
+test('cutPlaneGeometry shortens a box and caps the cut side', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const result = cutPlaneGeometry(geometry, {
+    axis: 'x',
+    cap: true,
+    keepSide: 'negative',
+    position: 0,
+  });
+
+  assert.ok(result);
+  result.geometry.computeBoundingBox();
+  assert.ok(Math.abs(result.geometry.boundingBox.min.x + 5) < 1e-6);
+  assert.ok(Math.abs(result.geometry.boundingBox.max.x) < 1e-6);
+  assert.ok(result.report.removedTriangles > 0);
+  assert.ok(result.report.capTriangles > 0);
+});
+
+test('cutPlaneGeometry can cut without cap for advanced/debug workflows', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const result = cutPlaneGeometry(geometry, {
+    axis: 'x',
+    cap: false,
+    keepSide: 'positive',
+    position: 0,
+  });
+
+  assert.ok(result);
+  assert.equal(result.report.capTriangles, 0);
+  result.geometry.computeBoundingBox();
+  assert.ok(Math.abs(result.geometry.boundingBox.min.x) < 1e-6);
+  assert.ok(Math.abs(result.geometry.boundingBox.max.x - 5) < 1e-6);
+});
+
+test('cutPlaneGeometry returns null when the kept side is empty', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const result = cutPlaneGeometry(geometry, {
+    axis: 'x',
+    keepSide: 'positive',
+    position: 10,
+  });
+
+  assert.equal(result, null);
+});
+
+test('removeMiddleSectionGeometry removes a centered section and closes the gap', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const result = removeMiddleSectionGeometry(geometry, {
+    axis: 'x',
+    start: -1,
+    end: 1,
+  });
+
+  assert.ok(result);
+  const repaired = repairMeshGeometry(result.geometry, { planarize: false });
+  const output = repaired.geometry.toNonIndexed();
+  output.computeBoundingBox();
+  assert.ok(Math.abs(output.boundingBox.min.x + 5) < 1e-6);
+  assert.ok(Math.abs(output.boundingBox.max.x - 3) < 1e-6);
+  assert.equal(Math.round(output.boundingBox.max.x - output.boundingBox.min.x), 8);
+  assert.ok(result.report.removedTriangles > 0);
+});
+
+test('removeMiddleSectionGeometry returns null when one side would be empty', () => {
+  const geometry = new THREE.BoxGeometry(10, 8, 6).toNonIndexed();
+  const result = removeMiddleSectionGeometry(geometry, {
+    axis: 'x',
+    start: -10,
+    end: 0,
+  });
+
+  assert.equal(result, null);
 });
 
 test('combineGeometries appends geometry positions without a boolean operation', () => {

@@ -731,6 +731,206 @@ function applyCut() {
   applyPrimitiveGeometry(geometry, 'subtract', 'Figura sottratta dal file STL.');
 }
 
+function shortenAxisIndex() {
+  return { x: 0, y: 1, z: 2 }[ui.shortenAxis.value] ?? 1;
+}
+
+function shortenAxisLabel(axis = shortenAxisIndex()) {
+  return ['X', 'Y', 'Z'][axis] ?? 'Y';
+}
+
+function axisComponent(vector, axis) {
+  return axis === 0 ? vector.x : axis === 1 ? vector.y : vector.z;
+}
+
+function setAxisComponent(vector, axis, value) {
+  if (axis === 0) vector.x = value;
+  else if (axis === 1) vector.y = value;
+  else vector.z = value;
+}
+
+function modelBox() {
+  if (!model) return null;
+  model.geometry.computeBoundingBox();
+  return model.geometry.boundingBox.clone();
+}
+
+function resetShortenDefaults() {
+  const box = modelBox();
+  if (!box) {
+    ui.applyShorten.disabled = true;
+    if (ui.shortenReadout) ui.shortenReadout.textContent = t('Apri o crea un modello prima di usare Accorcia.');
+    return;
+  }
+  const size = box.getSize(new THREE.Vector3());
+  const axis = shortenAxisIndex();
+  const length = Math.max(axisComponent(size, axis) * 0.5, 0.1);
+  ui.shortenLength.value = formatDecimal(length);
+  ui.applyShorten.disabled = false;
+}
+
+function shortenStateFromInputs() {
+  const box = modelBox();
+  if (!box) return null;
+  const axis = shortenAxisIndex();
+  const size = box.getSize(new THREE.Vector3());
+  const currentLength = axisComponent(size, axis);
+  const requestedLength = parseDecimal(ui.shortenLength.value, 0);
+  if (!(requestedLength > 0) || !(requestedLength < currentLength)) {
+    return {
+      error: currentLanguage === 'en'
+        ? `New length must be greater than 0 and less than ${formatMillimeters(currentLength)}.`
+        : `La nuova lunghezza deve essere maggiore di 0 e minore di ${formatMillimeters(currentLength)}.`,
+    };
+  }
+  const min = axisComponent(box.min, axis);
+  const max = axisComponent(box.max, axis);
+  const keepSide = ['positive', 'middle'].includes(ui.shortenKeepSide.value)
+    ? ui.shortenKeepSide.value
+    : 'negative';
+  const planePosition = keepSide === 'negative'
+    ? min + requestedLength
+    : max - requestedLength;
+  const removedLength = currentLength - requestedLength;
+  const middleStart = min + requestedLength * 0.5;
+  const middleEnd = middleStart + removedLength;
+  return {
+    axis,
+    axisKey: ['x', 'y', 'z'][axis],
+    box,
+    currentLength,
+    keepSide,
+    middleEnd,
+    middleStart,
+    planePosition,
+    requestedLength,
+    removedLength,
+  };
+}
+
+function makePreviewBox(box, color) {
+  const size = box.getSize(new THREE.Vector3());
+  if (size.x <= 0 || size.y <= 0 || size.z <= 0) return null;
+  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+  geometry.translate(...box.getCenter(new THREE.Vector3()).toArray());
+  const mesh = new THREE.Mesh(geometry, createPreviewMaterial(color));
+  mesh.renderOrder = 12;
+  return mesh;
+}
+
+function drawShortenPreview() {
+  if (shortenPreview) {
+    scene.remove(shortenPreview);
+    disposeObject(shortenPreview);
+    shortenPreview = null;
+  }
+  if (activeTool !== 'shorten') return;
+
+  const state = shortenStateFromInputs();
+  if (!state || state.error) {
+    ui.applyShorten.disabled = true;
+    ui.shortenReadout.textContent = state?.error ?? t('Apri o crea un modello prima di usare Accorcia.');
+    requestRender();
+    return;
+  }
+
+  const group = new THREE.Group();
+  const padding = Math.max(state.currentLength * 0.03, 1);
+  const fullBox = state.box.clone().expandByScalar(padding);
+  const removedBox = fullBox.clone();
+  const planeThickness = Math.max(state.currentLength * 0.004, 0.15);
+
+  if (state.keepSide === 'middle') {
+    setAxisComponent(removedBox.min, state.axis, state.middleStart);
+    setAxisComponent(removedBox.max, state.axis, state.middleEnd);
+  } else {
+    if (state.keepSide === 'negative') {
+      setAxisComponent(removedBox.min, state.axis, state.planePosition);
+    } else {
+      setAxisComponent(removedBox.max, state.axis, state.planePosition);
+    }
+  }
+  const removedMesh = makePreviewBox(removedBox, 0xe46f2b);
+  if (removedMesh) group.add(removedMesh);
+
+  const planePositions = state.keepSide === 'middle'
+    ? [state.middleStart, state.middleEnd]
+    : [state.planePosition];
+  for (const position of planePositions) {
+    const planeBox = fullBox.clone();
+    setAxisComponent(planeBox.min, state.axis, position - planeThickness * 0.5);
+    setAxisComponent(planeBox.max, state.axis, position + planeThickness * 0.5);
+    const planeMesh = makePreviewBox(planeBox, 0x1679b8);
+    if (planeMesh) group.add(planeMesh);
+  }
+
+  shortenPreview = group;
+  addTransientOverlay(shortenPreview, 'shorten-preview');
+  ui.applyShorten.disabled = false;
+  ui.shortenCap.disabled = state.keepSide === 'middle';
+  ui.shortenReadout.textContent = state.keepSide === 'middle'
+    ? currentLanguage === 'en'
+      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Removing middle ${formatMillimeters(state.middleStart)} - ${formatMillimeters(state.middleEnd)}.`
+      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Rimuove sezione ${formatMillimeters(state.middleStart)} - ${formatMillimeters(state.middleEnd)}.`
+    : currentLanguage === 'en'
+      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Cut plane ${formatMillimeters(state.planePosition)}; removing ${formatMillimeters(state.removedLength)}.`
+      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Piano a ${formatMillimeters(state.planePosition)}; rimuove ${formatMillimeters(state.removedLength)}.`;
+  ui.shortenInfo.textContent = state.keepSide === 'middle'
+    ? t('Accorcia: rimuove la sezione mediana, riavvicina le estremita e salda i vertici coincidenti.')
+    : currentLanguage === 'en'
+      ? `Keeping the ${state.keepSide} side and cutting without scaling.`
+      : `Mantiene il lato ${state.keepSide === 'negative' ? 'negativo' : 'positivo'} e taglia senza scalare.`;
+}
+
+async function applyShorten() {
+  if (!model) {
+    setStatus('Apri o crea un modello prima di usare Accorcia.');
+    return;
+  }
+  const state = shortenStateFromInputs();
+  if (!state || state.error) {
+    setStatus(state?.error ?? 'Imposta un taglio valido.');
+    return;
+  }
+
+  showBusy('Taglio in corso...', 'Sto tagliando la mesh e richiudendo la superficie.');
+  await waitForNextFrame();
+  snapshot();
+  try {
+    const result = state.keepSide === 'middle'
+      ? removeMiddleSectionGeometry(model.geometry, {
+        axis: state.axisKey,
+        end: state.middleEnd,
+        start: state.middleStart,
+      })
+      : cutPlaneGeometry(model.geometry, {
+        axis: state.axisKey,
+        cap: ui.shortenCap.checked,
+        keepSide: state.keepSide,
+        position: state.planePosition,
+      });
+    if (!result?.geometry) throw new Error('Il taglio non ha prodotto geometria.');
+    const repaired = repairMeshGeometry(result.geometry, { planarize: false });
+    const finalGeometry = repaired?.geometry ?? result.geometry;
+    if (repaired?.geometry) result.geometry.dispose();
+    setModelGeometry(finalGeometry, false, { preserveSketch: true });
+    updateHistoryButtons();
+    setStatus(state.keepSide === 'middle'
+      ? t('Sezione mediana rimossa. Le due parti sono state riavvicinate e saldate dove possibile.')
+      : currentLanguage === 'en'
+        ? `Cut applied: ${result.report.removedTriangles} triangles removed, ${result.report.capTriangles} cap triangles.`
+        : `Taglio applicato: ${result.report.removedTriangles} triangoli rimossi, ${result.report.capTriangles} triangoli di chiusura.`);
+  } catch (error) {
+    console.error(`Errore Accorcia: ${error?.stack ?? error}`);
+    const previous = undoStack.pop();
+    if (previous) setModelGeometry(previous, false, { preserveSketch: true });
+    updateHistoryButtons();
+    setStatus('Taglio non riuscito: prova un asse diverso o una lunghezza meno vicina al bordo.');
+  } finally {
+    hideBusy();
+  }
+}
+
 async function selectedTextFont() {
   const family = textFontSources[ui.textFont.value] ?? textFontSources.helvetiker;
   const url = ui.textBold.checked ? family.bold : family.regular;

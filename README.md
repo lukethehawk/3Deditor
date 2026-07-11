@@ -85,6 +85,7 @@ referenced project notices are tracked in
 | `Objects` drawer | Open a compact body list from the bottom of the left toolbar |
 | `Save project` / `Open project` | Store and restore `.forma3d.json` project state |
 | `Repair mesh` | Weld vertices, remove bad triangles and planarize near-flat areas |
+| `Shorten` | Cut an STL along X/Y/Z without scaling and cap the cut where possible |
 | `Export STL` / `Export OBJ` | Download the edited mesh |
 | `Export selection` | Download only the selected face or body as STL |
 
@@ -101,6 +102,7 @@ referenced project notices are tracked in
 | `K` | Gear |
 | `A` | 3D Text |
 | `T` | Subtract |
+| `X` | Shorten / cut |
 | `H` | Hole |
 | `F` | Move hole |
 | `L` | Line guides |
@@ -154,10 +156,15 @@ limit to keep the browser responsive.
 The `Booleans` menu contains:
 
 - Subtract
+- Shorten
 - Hole
 - Move hole
 
 Boolean operations work best on closed and reasonably clean meshes.
+`Shorten` is a direct mesh cut, not a scale operation. It can keep the negative
+side, keep the positive side, or remove a middle section and close the gap by
+moving the positive side back against the negative side. Very dirty,
+non-manifold or hollow cross-sections can still need slicer/mesh repair checks.
 
 </details>
 
@@ -181,7 +188,7 @@ Line guides persist as construction geometry and can create closed faces.
 | `src/style.css` | Layout and visual design |
 | `src/main.parts/*.js` | Main controller source |
 | `src/main.js` | Generated file, do not edit manually |
-| `src/geometry.js` | Mesh selection, repair, push/pull and geometry helpers |
+| `src/geometry.js` | Mesh selection, repair, push/pull, plane cut and geometry helpers |
 | `src/primitives.js` | Solid primitives, text, planes and gears |
 | `src/snapping.js` | Grid, point, axis and inference snapping |
 | `src/measurement.js` | Measurement logic |
@@ -297,6 +304,7 @@ e le note sui pattern di riferimento sono in
 | Drawer `Objects` | Apre una lista compatta dei corpi dalla toolbar sinistra |
 | `Save project` / `Open project` | Salva e riapre lo stato `.forma3d.json` |
 | `Repair mesh` | Salda vertici, rimuove triangoli difettosi e planarizza aree quasi piatte |
+| `Shorten` | Taglia un STL lungo X/Y/Z senza scalarlo e richiude dove possibile |
 | `Export STL` / `Export OBJ` | Scarica la mesh modificata |
 | `Export selection` | Scarica solo la faccia o il corpo selezionato come STL |
 
@@ -313,6 +321,7 @@ e le note sui pattern di riferimento sono in
 | `K` | Ingranaggio |
 | `A` | Testo 3D |
 | `T` | Sottrai |
+| `X` | Accorcia / taglia |
 | `H` | Foro |
 | `F` | Sposta foro |
 | `L` | Linee guida |
@@ -368,10 +377,16 @@ con limite a 80 denti per mantenere il browser reattivo.
 Il menu `Booleans` contiene:
 
 - Sottrai
+- Accorcia
 - Foro
 - Sposta foro
 
 Le booleane funzionano meglio su mesh chiuse e abbastanza pulite.
+`Accorcia` e' un taglio mesh diretto, non una scalatura. Puo' mantenere il lato
+negativo, mantenere il lato positivo, oppure rimuovere una sezione mediana e
+richiudere il vuoto spostando il lato positivo contro quello negativo. Sezioni
+cave molto sporche o non-manifold possono richiedere comunque controlli in
+slicer o riparazione mesh.
 
 </details>
 

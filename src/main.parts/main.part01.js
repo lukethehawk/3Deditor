@@ -21,6 +21,7 @@ import {
   collectConnectedComponents,
   collectDisplaySnapPoints,
   combineGeometries,
+  cutPlaneGeometry,
   createDisplayEdgesGeometry,
   createPushPullRegionGeometry,
   createRegionGeometry,
@@ -33,6 +34,7 @@ import {
   regionHasCoplanarSupport,
   regionHasOpenBoundary,
   repairMeshGeometry,
+  removeMiddleSectionGeometry,
   transformTrianglesInGeometry,
   triangleCount,
 } from './geometry.js';
@@ -172,6 +174,7 @@ let planePlacement = null;
 let planePreview = null;
 let cutPlacement = null;
 let cutPreview = null;
+let shortenPreview = null;
 let textPlacement = null;
 let textPreview = null;
 let transformPreview = null;
@@ -388,6 +391,14 @@ const ui = {
     document.querySelector('#cut-offset-z'),
   ],
   applyCut: document.querySelector('#apply-cut'),
+  shortenForm: document.querySelector('#shorten-form'),
+  shortenInfo: document.querySelector('#shorten-info'),
+  shortenAxis: document.querySelector('#shorten-axis'),
+  shortenKeepSide: document.querySelector('#shorten-keep-side'),
+  shortenLength: document.querySelector('#shorten-length'),
+  shortenCap: document.querySelector('#shorten-cap'),
+  shortenReadout: document.querySelector('#shorten-readout'),
+  applyShorten: document.querySelector('#apply-shorten'),
   textForm: document.querySelector('#text-form'),
   textInfo: document.querySelector('#text-info'),
   textContent: document.querySelector('#text-content'),
@@ -549,6 +560,7 @@ const languageText = {
     gear: 'Ingranaggio',
     text: 'Testo 3D',
     cut: 'Sottrai',
+    shorten: 'Accorcia',
     hole: 'Foro',
     movehole: 'Sposta foro',
     line: 'Linea',
@@ -584,6 +596,7 @@ const languageText = {
     gear: 'Gear',
     text: '3D Text',
     cut: 'Subtract',
+    shorten: 'Shorten',
     hole: 'Hole',
     movehole: 'Move hole',
     line: 'Line',
@@ -612,6 +625,7 @@ const staticTranslations = {
     'Testo 3D (A)': '3D Text (A)',
     'Operazioni booleane': 'Boolean operations',
     'Sottrai solido (T)': 'Subtract solid (T)',
+    'Accorcia / taglia (X)': 'Shorten / cut (X)',
     'Foro (H)': 'Hole (H)',
     'Sposta foro (F)': 'Move hole (F)',
     'Strumenti 2D': '2D tools',
@@ -851,6 +865,31 @@ const staticTranslations = {
     'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.': 'Subtract: choose box or cylinder, click the point and apply the cut.',
     'Sottrai: clicca il punto in cui piazzare la figura di taglio.': 'Subtract: click where to place the cutting shape.',
     'Figura di sottrazione impostata. Regola dimensioni e spostamenti, poi applica.': 'Subtraction shape set. Adjust dimensions and offsets, then apply.',
+    'Taglio modello': 'Model cut',
+    'Accorcia il modello con un piano di taglio e richiudi la superficie.': 'Shorten the model with a cutting plane and cap the cut surface.',
+    'Il taglio non scala il modello: elimina una parte e lascia invariato il lato mantenuto.': 'The cut does not scale the model: it removes one side and leaves the kept side unchanged.',
+    'Asse taglio': 'Cut axis',
+    'Mantieni lato': 'Keep side',
+    'Modalita taglio': 'Cut mode',
+    'Lato negativo': 'Negative side',
+    'Lato positivo': 'Positive side',
+    'Sezione mediana': 'Middle section',
+    'Nuova lunghezza': 'New length',
+    'Chiudi superficie tagliata': 'Cap cut surface',
+    'Il piano blu indica il taglio. Lato mantenuto: scegli negativo o positivo.': 'The blue plane marks the cut. Kept side: choose negative or positive.',
+    'Applica taglio': 'Apply cut',
+    'Accorcia': 'Shorten',
+    'Taglia lungo X, Y o Z mantenendo invariato il lato scelto. Utile per ridurre profondita o lunghezza di STL funzionali.': 'Cut along X, Y or Z while keeping the chosen side unchanged. Useful for reducing depth or length of functional STLs.',
+    'Accorcia: scegli asse e nuova lunghezza, poi applica il taglio.': 'Shorten: choose axis and new length, then apply the cut.',
+    'Accorcia: regola asse, lato mantenuto e nuova lunghezza.': 'Shorten: adjust axis, kept side and new length.',
+    'Accorcia: rimuove la sezione mediana, riavvicina le estremita e salda i vertici coincidenti.': 'Shorten: removes the middle section, closes the gap and welds coincident vertices.',
+    'Taglio applicato. La mesh e stata richiusa dove possibile.': 'Cut applied. The mesh was capped where possible.',
+    'Sezione mediana rimossa. Le due parti sono state riavvicinate e saldate dove possibile.': 'Middle section removed. The two parts were closed together and welded where possible.',
+    'Apri o crea un modello prima di usare Accorcia.': 'Open or create a model before using Shorten.',
+    'Taglio in corso...': 'Cutting...',
+    'Sto tagliando la mesh e richiudendo la superficie.': 'Cutting the mesh and capping the surface.',
+    'Taglio non riuscito: prova un asse diverso o una lunghezza meno vicina al bordo.': 'Cut failed: try a different axis or a length less close to the edge.',
+    'Imposta un taglio valido.': 'Set a valid cut.',
     Guide: 'Guides',
     'Clicca punti, vertici e punti medi per creare linee guida e facce.': 'Click points, vertices and midpoints to create guides and faces.',
     'Le linee sono elementi di costruzione: gli altri strumenti possono agganciarsi a estremi, midpoint e segmenti.': 'Lines are construction elements: other tools can snap to endpoints, midpoints and segments.',
@@ -1049,6 +1088,7 @@ function applyLanguage(language) {
     'gear',
     'text',
     'cut',
+    'shorten',
     'hole',
     'movehole',
     'line',
@@ -1241,6 +1281,7 @@ function clearTransientOverlays() {
   conePreview = null;
   pyramidPreview = null;
   cutPreview = null;
+  shortenPreview = null;
   textPreview = null;
   transformPreview = null;
   sketchPreview = null;

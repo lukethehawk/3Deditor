@@ -536,6 +536,27 @@ document.querySelector('#reset-cut').addEventListener('click', () => {
   clearCutPlacement();
   setStatus('Sottrai: clicca il punto in cui piazzare la figura di taglio.');
 });
+ui.shortenAxis.addEventListener('change', () => {
+  resetShortenDefaults();
+  drawShortenPreview();
+});
+[
+  ui.shortenKeepSide,
+  ui.shortenLength,
+  ui.shortenCap,
+].forEach((input) => {
+  input.addEventListener('input', drawShortenPreview);
+  input.addEventListener('change', drawShortenPreview);
+});
+ui.applyShorten.addEventListener('click', (event) => {
+  event.preventDefault();
+  applyShorten();
+});
+document.querySelector('#reset-shorten').addEventListener('click', () => {
+  resetShortenDefaults();
+  drawShortenPreview();
+  setStatus('Accorcia: regola asse, lato mantenuto e nuova lunghezza.');
+});
 [
   ui.textContent,
   ui.textFont,
@@ -699,6 +720,7 @@ window.addEventListener('keydown', (event) => {
     k: 'gear',
     n: 'plane',
     t: 'cut',
+    x: 'shorten',
     a: 'text',
     l: 'line',
     m: 'measure',

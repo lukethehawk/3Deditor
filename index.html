@@ -148,6 +148,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8l7-4 7 4v8l-7 4-7-4z"/><path d="M15 12h6"/></svg>
               <span>Sottrai</span>
             </button>
+            <button class="tool compact" data-tool="shorten" title="Accorcia / taglia (X)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16"/><path d="M8 4v16M16 4v16"/><path d="M10 12h8M15 9l3 3-3 3"/></svg>
+              <span>Accorcia</span>
+            </button>
             <button class="tool compact" data-tool="hole" title="Foro (H)">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>
               <span>Foro</span>
@@ -732,6 +736,37 @@
           <small>Per scavare dentro una faccia, clicca la faccia e usa gli offset per centrare il taglio.</small>
           <button id="apply-cut" type="button" class="action-button danger" disabled>Sottrai dallo STL</button>
           <button id="reset-cut" type="button" class="secondary-button">Ricomincia</button>
+        </form>
+
+        <form id="shorten-form" class="tool-form primitive-form" hidden>
+          <div class="hole-readout">
+            <span>Taglio modello</span>
+            <strong id="shorten-info">Accorcia il modello con un piano di taglio e richiudi la superficie.</strong>
+            <small>Il taglio non scala il modello: elimina una parte e lascia invariato il lato mantenuto.</small>
+          </div>
+          <label for="shorten-axis">Asse taglio</label>
+          <select id="shorten-axis">
+            <option value="x">X</option>
+            <option value="y" selected>Y</option>
+            <option value="z">Z</option>
+          </select>
+          <label for="shorten-keep-side">Modalita taglio</label>
+          <select id="shorten-keep-side">
+            <option value="negative">Lato negativo</option>
+            <option value="positive">Lato positivo</option>
+            <option value="middle">Sezione mediana</option>
+          </select>
+          <label for="shorten-length">Nuova lunghezza</label>
+          <div class="field-with-unit">
+            <input id="shorten-length" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
+            <span>mm</span>
+          </div>
+          <div class="toggle-row single">
+            <label><input id="shorten-cap" type="checkbox" checked /> Chiudi superficie tagliata</label>
+          </div>
+          <small id="shorten-readout">Il piano blu indica il taglio. Lato mantenuto: scegli negativo o positivo.</small>
+          <button id="apply-shorten" type="button" class="action-button danger" disabled>Applica taglio</button>
+          <button id="reset-shorten" type="button" class="secondary-button">Ricomincia</button>
         </form>
 
         <form id="sketch-form" class="tool-form primitive-form" hidden>
