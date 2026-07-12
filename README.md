@@ -116,7 +116,7 @@ referenced project notices are tracked in
 | `G` | Transform |
 | `O` | Orbit |
 | `Delete` | Delete active preview, guide, face or selected body |
-| `Ctrl+Z` / `Ctrl+Y` | Undo / redo |
+| `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z` | Undo / redo |
 
 Navigation:
 
@@ -145,9 +145,9 @@ Navigation:
   permanently. `Pattern` opens a side drawer for linear copies by X/Y/Z distance
   or circular copies by count, radius and axis.
 - `History`: opens a compact drawer below Objects with the last mesh snapshots.
-  It is not a parametric CAD timeline: `Ctrl+Z`/`Ctrl+Y` remain the main undo
-  mechanism, and clicking a previous entry jumps back through the same undo/redo
-  stacks.
+  It is not a parametric CAD timeline: `Ctrl+Z` remains the main undo
+  mechanism, `Ctrl+Y` or `Ctrl+Shift+Z` redo, and clicking a previous entry
+  jumps back through the same undo/redo stacks.
 </details>
 
 <details>
@@ -391,7 +391,7 @@ e le note sui pattern di riferimento sono in
 | `G` | Trasforma |
 | `O` | Orbita |
 | `Canc` | Cancella anteprima, guida, faccia o corpo selezionato |
-| `Ctrl+Z` / `Ctrl+Y` | Annulla / ripristina |
+| `Ctrl+Z` / `Ctrl+Y` / `Ctrl+Shift+Z` | Annulla / ripristina |
 
 Navigazione:
 
@@ -417,9 +417,9 @@ Navigazione:
   selezionata sul piano di stampa, ruotarla verso il basso, centrare il target
   sull'origine X/Y o scalarlo a una dimensione massima X/Y/Z.
 - `History`: apre un drawer compatto sotto Oggetti con gli ultimi snapshot mesh.
-  Non e' una timeline CAD parametrica: `Ctrl+Z`/`Ctrl+Y` restano il meccanismo
-  principale, e cliccare una voce precedente torna indietro usando gli stessi
-  stack undo/redo.
+  Non e' una timeline CAD parametrica: `Ctrl+Z` resta il meccanismo principale
+  di annulla, `Ctrl+Y` o `Ctrl+Shift+Z` ripristinano, e cliccare una voce
+  precedente torna indietro usando gli stessi stack undo/redo.
 - `Objects`: apre un drawer richiudibile con i corpi connessi. Le righe
   permettono rinomina, selezione, pattern, export ed eliminazione senza occupare
   il viewport in modo permanente. `Pattern` apre un drawer laterale per copie

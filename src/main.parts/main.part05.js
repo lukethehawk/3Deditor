@@ -1008,7 +1008,7 @@ window.addEventListener('keydown', (event) => {
   if (handleDeleteKey(event)) return;
   if (event.ctrlKey && event.key.toLowerCase() === 'z') {
     event.preventDefault();
-    restoreFrom(undoStack, redoStack);
+    restoreFrom(event.shiftKey ? redoStack : undoStack, event.shiftKey ? undoStack : redoStack);
     return;
   }
   if (event.ctrlKey && event.key.toLowerCase() === 'y') {

@@ -1721,7 +1721,8 @@ Shortcut principali:
 - click singolo in `Select`: seleziona faccia;
 - doppio click in `Select` o `Transform`: seleziona corpo;
 - `Canc`: cancella anteprima, faccia o corpo selezionato;
-- `Ctrl+Z` / `Ctrl+Y`: annulla / ripristina.
+- `Ctrl+Z`: annulla.
+- `Ctrl+Y` / `Ctrl+Shift+Z`: ripristina.
 
 ## Problemi noti e limiti
 
