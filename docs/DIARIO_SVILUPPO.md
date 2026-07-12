@@ -16,8 +16,9 @@ connected-body workflows:
 
 - English is the primary UI and documentation language; Italian remains
   selectable in the app and documented below.
-- `Options` contains language selection, quick help, `Repair mesh`, project
-  open/save, STL export, OBJ export and selection export.
+- `Options` contains language selection, `Repair mesh`, project open/save, STL
+  export, OBJ export and selection export; the adjacent `Help` button opens the
+  detailed command popup.
 - `Select` uses single click for planar face selection and double click for the
   clicked connected body.
 - Object selection no longer selects the whole STL mesh. It uses
@@ -148,11 +149,11 @@ layout.
 left drawer inside the viewport. The list is scrollable and each connected body
 row supports rename, select, STL export and delete.
 
-The topbar keeps `Open STL` and `Remove model` as primary actions. `Options`
-contains:
+The topbar keeps `Open STL` and `Remove model` as primary actions. The
+dedicated `Help` button opens a command popup with icon cards for selection,
+navigation, editing, Push/Pull, Objects and Shorten. `Options` contains:
 
 - language selection;
-- quick help tooltip;
 - `Repair mesh`;
 - `Open project`;
 - `Save project`;
@@ -561,9 +562,9 @@ separati per facce e corpi connessi. I punti piu importanti da ricordare prima
 di intervenire ancora:
 
 - la lingua primaria e' inglese, con italiano selezionabile dal menu `Options`;
-- il menu `Options` contiene lingua, guida rapida, `Repair mesh`,
-  apertura/salvataggio progetto, esportazione STL, esportazione OBJ ed export
-  della selezione;
+- il menu `Options` contiene lingua, `Repair mesh`, apertura/salvataggio
+  progetto, esportazione STL, esportazione OBJ ed export della selezione; la
+  guida rapida vive nel pulsante dedicato `Help`;
 - `Select` usa click singolo per selezionare una faccia e doppio click per
   selezionare il corpo connesso cliccato;
 - la selezione oggetto non prende piu' tutta la mesh STL: usa
@@ -713,11 +714,12 @@ booleane e strumenti 2D senza allungare la toolbar.
 drawer sottile nel viewport, con lista scrollabile. Ogni corpo connesso ha
 rinomina, selezione, export STL ed eliminazione.
 
-La topbar mantiene `Apri STL` e `Rimuovi modello` come azioni primarie. Il menu
-`Opzioni`, ultimo tasto a destra, contiene:
+La topbar mantiene `Apri STL` e `Rimuovi modello` come azioni primarie. Il
+pulsante dedicato `Help` apre un popup con schede e icone per selezione,
+navigazione, modifica, Spingi/Tira, Oggetti e Accorcia. Il menu `Opzioni`
+contiene:
 
 - selezione lingua `Italiano` / `English`;
-- tooltip di guida rapida con click, doppio click, `Canc`, orbita e pan;
 - `Ripara mesh`;
 - `Apri progetto`;
 - `Salva progetto`;

@@ -59,16 +59,6 @@
               <option value="en">🇬🇧 English</option>
               <option value="it">🇮🇹 Italiano</option>
             </select>
-            <div class="options-help">
-              <button class="help-dot" type="button" aria-label="Guida rapida">?</button>
-              <div class="options-tooltip" role="tooltip">
-                <strong>Comandi base</strong>
-                <span>Click: seleziona una faccia.</span>
-                <span>Doppio click: seleziona il corpo.</span>
-                <span>Canc: elimina la selezione.</span>
-                <span>Rotellina premuta: orbita. Tasto destro: panoramica.</span>
-              </div>
-            </div>
             <button id="repair-model" class="top-button" type="button">
               <span class="button-icon">R</span> Ripara mesh
             </button>
@@ -87,6 +77,63 @@
             <button id="export-selection" class="top-button" type="button">
               <span class="button-icon">X</span> Esporta selezione
             </button>
+          </div>
+        </div>
+        <button id="help-button" class="top-button help-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+          <span class="button-icon">?</span> Help
+        </button>
+        <div id="help-popover" class="help-popover" role="dialog" aria-modal="false" aria-labelledby="help-title" hidden>
+          <div class="help-heading">
+            <div>
+              <span class="eyebrow">HELP</span>
+              <h2 id="help-title">Comandi rapidi</h2>
+            </div>
+            <button id="help-close" class="icon-button" type="button" aria-label="Chiudi">x</button>
+          </div>
+          <p id="help-intro">I comandi principali restano sempre locali nel browser. Usa mouse e scorciatoie per modellare piu velocemente.</p>
+          <div class="help-grid">
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l10 9-5 1.2L8 20z"/><path d="M12 14l4 5"/></svg>
+              <div>
+                <h3>Selezione</h3>
+                <p>Click singolo seleziona una faccia. Doppio click seleziona il corpo intero.</p>
+              </div>
+            </article>
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8a8 8 0 0113-2l2-2v6h-6l2-2a5.5 5.5 0 10.5 8"/><path d="M9 12l3-3 3 3-3 3z"/></svg>
+              <div>
+                <h3>Navigazione</h3>
+                <p>Rotellina premuta orbita, rotellina zooma, tasto destro fa panoramica.</p>
+              </div>
+            </article>
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M9 7v12m6-12v12M10 4h4l1 3H9z"/><path d="M7 7l1 13h8l1-13"/></svg>
+              <div>
+                <h3>Modifica rapida</h3>
+                <p>Canc elimina selezione o anteprima. Ctrl+Z annulla, Ctrl+Y ripristina.</p>
+              </div>
+            </article>
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l8 4 8-4V8l-8-4-8 4z"/><path d="M4 8l8 4 8-4M12 12v8"/><circle cx="18" cy="6" r="2.5"/></svg>
+              <div>
+                <h3>Spingi/Tira</h3>
+                <p>Seleziona una faccia, inserisci una distanza oppure trascina la sfera visuale.</p>
+              </div>
+            </article>
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><path d="M7 5v4M13 10v4M18 15v4"/></svg>
+              <div>
+                <h3>Oggetti</h3>
+                <p>Il pannello Oggetti permette selezione, rinomina, esportazione e cancellazione dei corpi.</p>
+              </div>
+            </article>
+            <article class="help-card">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 4v16M17 4v16"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
+              <div>
+                <h3>Accorcia</h3>
+                <p>Lavora sul corpo selezionato. Attiva Applica a tutto il file per tagliare l'intera mesh.</p>
+              </div>
+            </article>
           </div>
         </div>
         <input id="file-input" type="file" accept=".stl" hidden />

@@ -263,6 +263,9 @@ const ui = {
   removeModelButton: document.querySelector('#remove-model'),
   optionsMenuButton: document.querySelector('#options-menu-button'),
   optionsMenu: document.querySelector('#options-menu'),
+  helpButton: document.querySelector('#help-button'),
+  helpPopover: document.querySelector('#help-popover'),
+  helpClose: document.querySelector('#help-close'),
   languageSelect: document.querySelector('#language-select'),
   fileInput: document.querySelector('#file-input'),
   projectInput: document.querySelector('#project-input'),
@@ -574,6 +577,7 @@ const languageText = {
     open: 'Apri STL',
     remove: 'Rimuovi modello',
     options: 'Opzioni',
+    help: 'Help',
     language: 'Lingua',
     repair: 'Ripara mesh',
     openProject: 'Apri progetto',
@@ -612,6 +616,7 @@ const languageText = {
     open: 'Open STL',
     remove: 'Remove model',
     options: 'Options',
+    help: 'Help',
     language: 'Language',
     repair: 'Repair mesh',
     openProject: 'Open project',
@@ -737,6 +742,18 @@ const staticTranslations = {
     'Clic sinistro: seleziona · Rotellina premuta: orbita · Rotellina: zoom · Tasto destro: panoramica': 'Left click: select · Middle drag: orbit · Wheel: zoom · Right button: pan',
     'Guida rapida': 'Quick guide',
     'Comandi base': 'Basic commands',
+    HELP: 'HELP',
+    'Comandi rapidi': 'Quick commands',
+    'I comandi principali restano sempre locali nel browser. Usa mouse e scorciatoie per modellare piu velocemente.': 'Core commands stay local in the browser. Use mouse controls and shortcuts to model faster.',
+    Selezione: 'Selection',
+    'Click singolo seleziona una faccia. Doppio click seleziona il corpo intero.': 'Single click selects a face. Double-click selects the whole body.',
+    Navigazione: 'Navigation',
+    'Rotellina premuta orbita, rotellina zooma, tasto destro fa panoramica.': 'Middle drag orbits, the wheel zooms, right button pans.',
+    'Modifica rapida': 'Quick edit',
+    'Canc elimina selezione o anteprima. Ctrl+Z annulla, Ctrl+Y ripristina.': 'Delete removes the selection or preview. Ctrl+Z undoes, Ctrl+Y redoes.',
+    'Seleziona una faccia, inserisci una distanza oppure trascina la sfera visuale.': 'Select a face, enter a distance or drag the visual sphere.',
+    'Il pannello Oggetti permette selezione, rinomina, esportazione e cancellazione dei corpi.': 'The Objects panel lets you select, rename, export and delete bodies.',
+    "Lavora sul corpo selezionato. Attiva Applica a tutto il file per tagliare l'intera mesh.": 'Works on the selected body. Enable Apply to whole file to cut the full mesh.',
     'Click: seleziona una faccia.': 'Click: select a face.',
     'Doppio click: seleziona il corpo.': 'Double-click: select the body.',
     'Canc: elimina la selezione.': 'Delete: removes the selection.',
@@ -1128,8 +1145,9 @@ function translateStaticText(language) {
     '.history-actions button',
     '#selection-info span',
     '#selection-info strong',
-    '.options-tooltip strong',
-    '.options-tooltip span',
+    '.help-popover h2',
+    '.help-popover h3',
+    '.help-popover p',
     '.objects-drawer-heading strong',
     '.objects-drawer-summary span',
     '.history-drawer-heading strong',
@@ -1207,6 +1225,7 @@ function applyLanguage(language) {
   setButtonHtml('#open-file', 'O', dictionary.open);
   setButtonHtml('#remove-model', 'X', dictionary.remove);
   setButtonHtml('#options-menu-button', '', dictionary.options, true);
+  setButtonHtml('#help-button', '?', dictionary.help);
   setText('label[for="language-select"]', dictionary.language);
   setButtonHtml('#repair-model', 'R', dictionary.repair);
   setButtonHtml('#open-project', 'P', dictionary.openProject);

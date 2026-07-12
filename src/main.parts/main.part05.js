@@ -341,10 +341,26 @@ ui.objectsList.addEventListener('click', (event) => {
   if (action === 'export') exportObjectByIndex(index);
   if (action === 'delete') deleteObjectByIndex(index);
 });
+function setHelpPopoverOpen(open) {
+  if (!ui.helpPopover || !ui.helpButton) return;
+  ui.helpPopover.hidden = !open;
+  ui.helpButton.setAttribute('aria-expanded', String(open));
+  if (open) {
+    ui.optionsMenu.hidden = true;
+    ui.optionsMenuButton.setAttribute('aria-expanded', 'false');
+  }
+}
 ui.optionsMenuButton.addEventListener('click', () => {
   const nextHidden = !ui.optionsMenu.hidden;
   ui.optionsMenu.hidden = nextHidden;
   ui.optionsMenuButton.setAttribute('aria-expanded', String(!nextHidden));
+  if (!nextHidden) setHelpPopoverOpen(false);
+});
+ui.helpButton.addEventListener('click', () => {
+  setHelpPopoverOpen(ui.helpPopover.hidden);
+});
+ui.helpClose.addEventListener('click', () => {
+  setHelpPopoverOpen(false);
 });
 document.addEventListener('click', (event) => {
   if (!ui.fileInfoPopover.hidden
@@ -362,6 +378,11 @@ document.addEventListener('click', (event) => {
     && !ui.historyDrawer.contains(event.target)
     && !ui.historyToggle.contains(event.target)) {
     setHistoryDrawerOpen(false);
+  }
+  if (!ui.helpPopover.hidden
+    && !ui.helpPopover.contains(event.target)
+    && !ui.helpButton.contains(event.target)) {
+    setHelpPopoverOpen(false);
   }
   if (ui.optionsMenu.hidden) return;
   if (ui.optionsMenu.contains(event.target) || ui.optionsMenuButton.contains(event.target)) return;
@@ -742,6 +763,11 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && ui.repairReportOverlay && !ui.repairReportOverlay.hidden) {
     event.preventDefault();
     hideRepairReport();
+    return;
+  }
+  if (event.key === 'Escape' && ui.helpPopover && !ui.helpPopover.hidden) {
+    event.preventDefault();
+    setHelpPopoverOpen(false);
     return;
   }
   if (event.key === 'Escape' && cancelPushPullHandleDrag()) {
