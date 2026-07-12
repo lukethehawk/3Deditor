@@ -557,6 +557,10 @@ ui.shortenAxis.addEventListener('change', () => {
   resetShortenDefaults();
   drawShortenPreview();
 });
+ui.shortenWholeModel.addEventListener('change', () => {
+  resetShortenDefaults();
+  drawShortenPreview();
+});
 [
   ui.shortenLength,
   ui.shortenCenter,

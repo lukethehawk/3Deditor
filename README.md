@@ -172,12 +172,15 @@ The `Booleans` menu contains:
 - Move hole
 
 Boolean operations work best on closed and reasonably clean meshes.
-`Shorten` works on the selected body, not the whole scene bounding box. Select a
-body first, then choose the cut axis, the length to remove and the cut center
-coordinate. If the orange cut volume stays inside that body, Forma3D removes the
-middle section and closes the gap. If it touches an edge, Forma3D automatically
-turns it into a side cut and keeps the opposite side. Very dirty, non-manifold or
-hollow cross-sections can still need slicer/mesh repair checks.
+`Shorten` works on the selected body by default, not the whole scene bounding
+box. Select a body first, then choose the cut axis, the length to remove and the
+cut center coordinate. Enable `Apply to whole file` when you intentionally want
+the older whole-mesh workflow, for example after a cut has split one functional
+part into separate connected components. If the orange cut volume stays inside
+the target, Forma3D removes the middle section and closes the gap. If it touches
+an edge, Forma3D automatically turns it into a side cut and keeps the opposite
+side. Very dirty, non-manifold or hollow cross-sections can still need
+slicer/mesh repair checks.
 
 `Hollow` is also mesh-first. It keeps the original outside triangles, creates an
 inner surface offset along averaged vertex normals, reverses the inner winding,
@@ -430,13 +433,15 @@ Il menu `Booleans` contiene:
 - Sposta foro
 
 Le booleane funzionano meglio su mesh chiuse e abbastanza pulite.
-`Accorcia` lavora sul corpo selezionato, non sul bounding box di tutta la scena.
-Seleziona prima un corpo, poi scegli asse di taglio, lunghezza da rimuovere e
-coordinata del centro taglio. Se il volume arancione resta dentro a quel corpo,
-Forma3D rimuove la sezione mediana e richiude il vuoto. Se tocca un bordo,
-Forma3D lo trasforma automaticamente in un taglio laterale e mantiene il lato
-opposto. Sezioni cave molto sporche o non-manifold possono richiedere comunque
-controlli in slicer o riparazione mesh.
+`Accorcia` lavora di default sul corpo selezionato, non sul bounding box di
+tutta la scena. Seleziona prima un corpo, poi scegli asse di taglio, lunghezza da
+rimuovere e coordinata del centro taglio. Attiva `Applica a tutto il file` quando
+vuoi intenzionalmente il vecchio flusso sull'intera mesh, per esempio dopo un
+taglio che ha diviso un pezzo funzionale in piu componenti connesse. Se il
+volume arancione resta dentro al target, Forma3D rimuove la sezione mediana e
+richiude il vuoto. Se tocca un bordo, Forma3D lo trasforma automaticamente in un
+taglio laterale e mantiene il lato opposto. Sezioni cave molto sporche o
+non-manifold possono richiedere comunque controlli in slicer o riparazione mesh.
 
 `Svuota` e' mesh-first. Mantiene i triangoli esterni originali, crea una
 superficie interna spostata lungo le normali medie dei vertici, inverte il

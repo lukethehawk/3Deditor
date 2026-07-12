@@ -788,18 +788,27 @@ function setAxisComponent(vector, axis, value) {
   else vector.z = value;
 }
 
+function shortenUsesWholeModel() {
+  return Boolean(ui.shortenWholeModel?.checked);
+}
+
 function shortenTargetTriangles() {
-  return model && selected?.type === 'object' && selected.triangles?.length
+  return model && !shortenUsesWholeModel() && selected?.type === 'object' && selected.triangles?.length
     ? selected.triangles
     : null;
 }
 
 function shortenTargetGeometry() {
+  if (shortenUsesWholeModel()) return model?.geometry ?? null;
   const triangles = shortenTargetTriangles();
   return triangles ? extractTrianglesFromGeometry(model.geometry, triangles) : null;
 }
 
 function shortenTargetBox() {
+  if (shortenUsesWholeModel() && model) {
+    model.geometry.computeBoundingBox();
+    return model.geometry.boundingBox.clone();
+  }
   const geometry = shortenTargetGeometry();
   if (!geometry) return null;
   geometry.computeBoundingBox();
@@ -810,6 +819,11 @@ function shortenTargetBox() {
 
 function resetShortenDefaults() {
   const box = shortenTargetBox();
+  if (ui.shortenInfo) {
+    ui.shortenInfo.textContent = shortenUsesWholeModel()
+      ? t('Accorcia tutto il file con un piano di taglio e richiudi la superficie.')
+      : t('Seleziona un oggetto, poi accorcialo con un piano di taglio e richiudi la superficie.');
+  }
   if (!box) {
     ui.applyShorten.disabled = true;
     if (ui.shortenReadout) {
@@ -829,10 +843,11 @@ function resetShortenDefaults() {
 }
 
 function shortenStateFromInputs() {
+  const wholeModel = shortenUsesWholeModel();
   const triangles = shortenTargetTriangles();
   const box = shortenTargetBox();
   if (!model) return null;
-  if (!triangles || !box) {
+  if ((!wholeModel && !triangles) || !box) {
     return {
       error: t('Seleziona prima un oggetto con doppio click, poi usa Accorcia.'),
     };
@@ -913,6 +928,7 @@ function shortenStateFromInputs() {
     rawStart,
     planePosition,
     removeLength,
+    wholeModel,
   };
 }
 
@@ -992,9 +1008,13 @@ async function applyShorten() {
 
   showBusy('Taglio in corso...', 'Sto tagliando la mesh e richiudendo la superficie.');
   await waitForNextFrame();
-  const targetTriangles = [...selected.triangles];
-  const targetGeometry = extractTrianglesFromGeometry(model.geometry, targetTriangles);
-  const remainderGeometry = deleteTrianglesFromGeometry(model.geometry, targetTriangles);
+  const targetTriangles = state.wholeModel ? null : [...selected.triangles];
+  const targetGeometry = state.wholeModel
+    ? model.geometry
+    : extractTrianglesFromGeometry(model.geometry, targetTriangles);
+  const remainderGeometry = state.wholeModel
+    ? null
+    : deleteTrianglesFromGeometry(model.geometry, targetTriangles);
   if (!targetGeometry) {
     hideBusy();
     setStatus('Seleziona prima un oggetto con doppio click, poi usa Accorcia.');
@@ -1002,7 +1022,7 @@ async function applyShorten() {
   }
   snapshot({
     title: t('Accorciato modello'),
-    detail: `${t('asse')} ${shortenAxisLabel(state.axis)}, ${t('rimosso')} ${formatMillimeters(state.removeLength)}, ${t('centro')} ${formatMillimeters(state.cutCenter)}`,
+    detail: `${state.wholeModel ? t('tutto file') : t('oggetto')}, ${t('asse')} ${shortenAxisLabel(state.axis)}, ${t('rimosso')} ${formatMillimeters(state.removeLength)}, ${t('centro')} ${formatMillimeters(state.cutCenter)}`,
   });
   try {
     const result = state.mode === 'middle'
@@ -1032,7 +1052,9 @@ async function applyShorten() {
     setModelGeometry(finalGeometry, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus(state.mode === 'middle'
-      ? t('Sezione mediana rimossa. Le due parti sono state riavvicinate e saldate dove possibile.')
+      ? (state.wholeModel
+        ? t('Accorcia applicato a tutto il file.')
+        : t('Sezione mediana rimossa. Le due parti sono state riavvicinate e saldate dove possibile.'))
       : t('Taglio laterale applicato. Il lato opposto e stato mantenuto.'));
   } catch (error) {
     console.error(`Errore Accorcia: ${error?.stack ?? error}`);
@@ -1041,7 +1063,7 @@ async function applyShorten() {
     updateHistoryButtons();
     setStatus('Taglio non riuscito: prova un asse diverso o una lunghezza meno vicina al bordo.');
   } finally {
-    targetGeometry.dispose();
+    if (!state.wholeModel) targetGeometry.dispose();
     if (remainderGeometry) remainderGeometry.dispose();
     hideBusy();
   }

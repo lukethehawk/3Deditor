@@ -374,13 +374,17 @@ selected immediately for Push/Pull.
 It lives in the `Booleans` menu but does not use CSG: it calls
 `cutPlaneGeometry()` in `src/geometry.js`.
 
-The UI expects a selected connected body. Shorten extracts that body with
+The default UI expects a selected connected body. Shorten extracts that body with
 `extractTrianglesFromGeometry()`, computes its bounding box, applies the cut to
 that isolated geometry, then recombines it with the untouched remainder via
-`combineGeometries()`. The cut window is computed as
+`combineGeometries()`. The `Apply to whole file` checkbox intentionally restores
+the older whole-mesh workflow: `shortenUsesWholeModel()` switches the target box
+to `model.geometry.boundingBox` and applies the cut directly to the full current
+mesh. This is useful after a previous cut has split one functional part into
+multiple connected components. The cut window is computed as
 `[center - length / 2, center + length / 2]` on the selected axis. If that window
-stays inside the selected body's bounding box, Shorten uses the middle-section
-workflow and closes the gap. If the window touches or crosses an edge, Shorten
+stays inside the target bounding box, Shorten uses the middle-section workflow
+and closes the gap. If the window touches or crosses an edge, Shorten
 automatically turns it into a side cut and keeps the opposite side.
 
 `cutPlaneGeometry()` classifies each triangle against the axis-aligned cut
@@ -1158,14 +1162,19 @@ Le primitive sono create in `src/primitives.js`.
 scalare il pezzo. Vive nel menu `Booleans`, ma non usa CSG: chiama
 `cutPlaneGeometry()` in `src/geometry.js`.
 
-La UI richiede un corpo connesso selezionato. Accorcia estrae quel corpo con
-`extractTrianglesFromGeometry()`, calcola il suo bounding box, applica il taglio
-alla geometria isolata e poi la ricompone con il resto non toccato tramite
-`combineGeometries()`. La finestra di taglio viene calcolata come
-`[centro - lunghezza / 2, centro + lunghezza / 2]` sull'asse scelto. Se la
-finestra resta dentro al bounding box del corpo selezionato, Accorcia usa il
-flusso mediano e richiude il vuoto. Se la finestra tocca o supera un bordo,
-Accorcia passa automaticamente al taglio laterale e mantiene il lato opposto.
+La UI di default richiede un corpo connesso selezionato. Accorcia estrae quel
+corpo con `extractTrianglesFromGeometry()`, calcola il suo bounding box, applica
+il taglio alla geometria isolata e poi la ricompone con il resto non toccato
+tramite `combineGeometries()`. La spunta `Applica a tutto il file` ripristina
+intenzionalmente il vecchio flusso sull'intera mesh: `shortenUsesWholeModel()`
+sposta il target box su `model.geometry.boundingBox` e applica il taglio
+direttamente alla mesh corrente completa. Serve quando un taglio precedente ha
+diviso un pezzo funzionale in piu componenti connesse. La finestra di taglio
+viene calcolata come `[centro - lunghezza / 2, centro + lunghezza / 2]`
+sull'asse scelto. Se la finestra resta dentro al bounding box target, Accorcia
+usa il flusso mediano e richiude il vuoto. Se la finestra tocca o supera un
+bordo, Accorcia passa automaticamente al taglio laterale e mantiene il lato
+opposto.
 
 `cutPlaneGeometry()` classifica ogni triangolo rispetto al piano assiale,
 mantiene i triangoli dal lato scelto, elimina quelli dal lato scartato, taglia i
