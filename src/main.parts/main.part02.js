@@ -518,18 +518,137 @@ function deleteObjectByIndex(index) {
 }
 
 function formatRepairReport(report) {
-  const cleanup = [
-    `${report.weldedVertices} vertici saldati`,
-    `${report.removedDegenerateTriangles} triangoli degeneri rimossi`,
-    `${report.removedDuplicateTriangles} duplicati rimossi`,
-    `${report.flippedTriangles} triangoli riorientati`,
-    `${report.planarizedVertices ?? 0} vertici planarizzati`,
-  ].join(', ');
+  const isEnglish = currentLanguage === 'en';
+  const cleanup = isEnglish
+    ? [
+      `${report.weldedVertices} welded vertices`,
+      `${report.removedDegenerateTriangles} degenerate triangles removed`,
+      `${report.removedDuplicateTriangles} duplicates removed`,
+      `${report.filledHoles ?? 0} holes filled`,
+      `${report.removedSmallComponents ?? 0} small components removed`,
+    ].join(', ')
+    : [
+      `${report.weldedVertices} vertici saldati`,
+      `${report.removedDegenerateTriangles} triangoli degeneri rimossi`,
+      `${report.removedDuplicateTriangles} duplicati rimossi`,
+      `${report.filledHoles ?? 0} buchi chiusi`,
+      `${report.removedSmallComponents ?? 0} componenti piccole rimosse`,
+    ].join(', ');
   const topology = [];
-  if (report.boundaryEdges) topology.push(`${report.boundaryEdges} bordi aperti restano`);
-  if (report.nonManifoldEdges) topology.push(`${report.nonManifoldEdges} spigoli non-manifold restano`);
-  const warning = topology.length ? ` Attenzione: ${topology.join(', ')}.` : '';
-  return `Mesh riparata: ${report.trianglesBefore} -> ${report.trianglesAfter} triangoli, ${cleanup}.${warning}`;
+  if (report.boundaryEdges) {
+    topology.push(isEnglish
+      ? `${report.boundaryEdges} open edges remain`
+      : `${report.boundaryEdges} bordi aperti restano`);
+  }
+  if (report.nonManifoldEdges) {
+    topology.push(isEnglish
+      ? `${report.nonManifoldEdges} non-manifold edges remain`
+      : `${report.nonManifoldEdges} spigoli non-manifold restano`);
+  }
+  const warning = topology.length
+    ? (isEnglish ? ` Warning: ${topology.join(', ')}.` : ` Attenzione: ${topology.join(', ')}.`)
+    : '';
+  return isEnglish
+    ? `Mesh repaired: ${report.trianglesBefore} -> ${report.trianglesAfter} triangles, ${cleanup}.${warning}`
+    : `Mesh riparata: ${report.trianglesBefore} -> ${report.trianglesAfter} triangoli, ${cleanup}.${warning}`;
+}
+
+function repairWarningText(warning) {
+  const english = {
+    'boundary-edges-remaining': 'Open edges remain: check the model in the slicer or try a smaller, cleaner repair pass.',
+    'hole-fill-skipped-ambiguous-plane': 'A hole was skipped because its plane was ambiguous.',
+    'hole-fill-skipped-large-diameter': 'A hole was skipped because its diameter is above the conservative limit.',
+    'hole-fill-skipped-large-loop': 'A hole was skipped because it has too many boundary edges.',
+    'hole-fill-skipped-large-mesh': 'Automatic hole filling was limited because the mesh is large.',
+    'hole-fill-skipped-non-planar-loop': 'A hole was skipped because its boundary is not planar enough.',
+    'hole-fill-skipped-open-or-branched-loop': 'An open or branched boundary chain was detected and left unchanged.',
+    'hole-fill-skipped-open-sheet': 'An isolated open sheet was detected and was not treated as a hole.',
+    'hole-fill-skipped-triangulation-failed': 'A hole was detected but could not be triangulated safely.',
+    'non-manifold-edges-remaining': 'Non-manifold edges remain: this may need slicer repair or a dedicated mesh tool.',
+    'small-components-detected': 'Small disconnected components were detected but not removed automatically.',
+  };
+  const italian = {
+    'boundary-edges-remaining': 'Restano bordi aperti: controlla il modello nello slicer o prova una riparazione piu pulita.',
+    'hole-fill-skipped-ambiguous-plane': 'Un buco e stato saltato perche il suo piano e ambiguo.',
+    'hole-fill-skipped-large-diameter': 'Un buco e stato saltato perche il diametro supera il limite conservativo.',
+    'hole-fill-skipped-large-loop': 'Un buco e stato saltato perche ha troppi bordi.',
+    'hole-fill-skipped-large-mesh': 'La chiusura automatica dei buchi e stata limitata perche la mesh e grande.',
+    'hole-fill-skipped-non-planar-loop': 'Un buco e stato saltato perche il contorno non e abbastanza planare.',
+    'hole-fill-skipped-open-or-branched-loop': 'Una catena aperta o ramificata e stata rilevata e lasciata invariata.',
+    'hole-fill-skipped-open-sheet': 'Una superficie isolata aperta e stata rilevata ma non trattata come buco.',
+    'hole-fill-skipped-triangulation-failed': 'Un buco e stato rilevato ma non triangolato in modo sicuro.',
+    'non-manifold-edges-remaining': 'Restano spigoli non-manifold: potrebbe servire lo slicer o uno strumento mesh dedicato.',
+    'small-components-detected': 'Sono state rilevate piccole componenti scollegate, ma non sono state rimosse automaticamente.',
+  };
+  return (currentLanguage === 'en' ? english : italian)[warning] ?? warning;
+}
+
+function repairMetricRows(report) {
+  const rows = currentLanguage === 'en'
+    ? [
+      ['Triangles', `${report.trianglesBefore} -> ${report.trianglesAfter}`],
+      ['Vertices', `${report.verticesBefore} -> ${report.verticesAfter}`],
+      ['Welded vertices', report.weldedVertices],
+      ['Degenerate triangles removed', report.removedDegenerateTriangles],
+      ['Duplicate triangles removed', report.removedDuplicateTriangles],
+      ['Flipped triangles', report.flippedTriangles],
+      ['Planarized vertices', report.planarizedVertices ?? 0],
+      ['Filled holes', report.filledHoles ?? 0],
+      ['Added triangles', report.addedTriangles ?? 0],
+      ['Boundary loops remaining', report.boundaryLoops ?? 0],
+      ['Open edges remaining', report.boundaryEdges],
+      ['Non-manifold edges', report.nonManifoldEdges],
+      ['Connected components', report.components],
+      ['Small components removed', report.removedSmallComponents ?? 0],
+    ]
+    : [
+      ['Triangoli', `${report.trianglesBefore} -> ${report.trianglesAfter}`],
+      ['Vertici', `${report.verticesBefore} -> ${report.verticesAfter}`],
+      ['Vertici saldati', report.weldedVertices],
+      ['Triangoli degeneri rimossi', report.removedDegenerateTriangles],
+      ['Triangoli duplicati rimossi', report.removedDuplicateTriangles],
+      ['Triangoli riorientati', report.flippedTriangles],
+      ['Vertici planarizzati', report.planarizedVertices ?? 0],
+      ['Buchi chiusi', report.filledHoles ?? 0],
+      ['Triangoli aggiunti', report.addedTriangles ?? 0],
+      ['Loop aperti rimasti', report.boundaryLoops ?? 0],
+      ['Bordi aperti rimasti', report.boundaryEdges],
+      ['Spigoli non-manifold', report.nonManifoldEdges],
+      ['Componenti connesse', report.components],
+      ['Componenti piccole rimosse', report.removedSmallComponents ?? 0],
+    ];
+  return rows;
+}
+
+function hideRepairReport() {
+  ui.repairReportOverlay.hidden = true;
+}
+
+function showRepairReport(report) {
+  if (!ui.repairReportOverlay) return;
+  ui.repairReportTitle.textContent = currentLanguage === 'en'
+    ? 'Repair completed'
+    : 'Riparazione completata';
+  ui.repairReportSummary.textContent = formatRepairReport(report);
+  ui.repairReportMetrics.replaceChildren();
+  for (const [label, value] of repairMetricRows(report)) {
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const detail = document.createElement('dd');
+    detail.textContent = String(value);
+    ui.repairReportMetrics.append(term, detail);
+  }
+
+  const warnings = [...new Set(report.warnings ?? [])].map(repairWarningText);
+  ui.repairReportWarningTitle.textContent = currentLanguage === 'en' ? 'Warnings' : 'Attenzione';
+  ui.repairReportWarnings.replaceChildren();
+  ui.repairReportWarningBox.hidden = warnings.length === 0;
+  for (const warning of warnings) {
+    const item = document.createElement('li');
+    item.textContent = warning;
+    ui.repairReportWarnings.append(item);
+  }
+  ui.repairReportOverlay.hidden = false;
 }
 
 async function repairCurrentMesh() {
@@ -538,10 +657,11 @@ async function repairCurrentMesh() {
     return;
   }
 
-  showBusy('Riparazione mesh...', 'Saldo vertici vicini, rimuovo triangoli difettosi e rendo planari le facce quasi piatte.');
+  showBusy('Riparazione mesh...', 'Analizzo bordi aperti, saldo vertici vicini, rimuovo triangoli difettosi e chiudo piccoli buchi planari.');
   await waitForNextFrame();
   await waitForNextFrame();
 
+  let report = null;
   try {
     const repaired = repairMeshGeometry(model.geometry);
     if (!repaired?.geometry) {
@@ -551,13 +671,15 @@ async function repairCurrentMesh() {
     snapshot();
     setModelGeometry(repaired.geometry, false, { preserveSketch: true });
     updateHistoryButtons();
-    setStatus(formatRepairReport(repaired.report));
+    report = repaired.report;
+    setStatus(formatRepairReport(report));
   } catch (error) {
     console.error(`Errore riparazione mesh: ${error?.stack ?? error}`);
     setStatus('Non riesco a riparare questa mesh.');
   } finally {
     hideBusy();
   }
+  if (report) showRepairReport(report);
 }
 
 function transformValuesFromInputs() {

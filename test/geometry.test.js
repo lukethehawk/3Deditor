@@ -38,6 +38,28 @@ function findTopTriangle(geometry) {
   throw new Error('Top triangle not found');
 }
 
+function findTrianglesByNormal(geometry, predicate) {
+  const total = triangleCount(geometry);
+  const result = [];
+  for (let triangle = 0; triangle < total; triangle += 1) {
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const position = geometry.getAttribute('position');
+    const index = geometry.getIndex();
+    const vertex = (corner, target) => {
+      const vertexIndex = index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+      return target.fromBufferAttribute(position, vertexIndex);
+    };
+    vertex(0, a);
+    vertex(1, b);
+    vertex(2, c);
+    const normal = b.clone().sub(a).cross(c.clone().sub(a)).normalize();
+    if (predicate(normal)) result.push(triangle);
+  }
+  return result;
+}
+
 function uniqueAxisValues(geometry, axis) {
   const position = geometry.getAttribute('position');
   const values = new Set();
@@ -499,5 +521,77 @@ test('repairMeshGeometry reports open boundary edges', () => {
 
   assert.ok(repaired);
   assert.equal(repaired.report.boundaryEdges, 3);
+  assert.equal(repaired.report.boundaryLoops, 1);
   assert.equal(repaired.report.nonManifoldEdges, 0);
+});
+
+test('repairMeshGeometry closes a simple planar box hole conservatively', () => {
+  const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const topTriangles = findTrianglesByNormal(box, (normal) => normal.z > 0.99);
+  const openBox = deleteTrianglesFromGeometry(box, topTriangles);
+
+  const repaired = repairMeshGeometry(openBox, { planarize: false });
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.filledHoles, 1);
+  assert.equal(repaired.report.addedTriangles, 2);
+  assert.equal(repaired.report.boundaryEdges, 0);
+  assert.equal(triangleCount(repaired.geometry), 12);
+});
+
+test('repairMeshGeometry does not close loops above the conservative edge limit', () => {
+  const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const topTriangles = findTrianglesByNormal(box, (normal) => normal.z > 0.99);
+  const openBox = deleteTrianglesFromGeometry(box, topTriangles);
+
+  const repaired = repairMeshGeometry(openBox, {
+    maxHoleEdges: 3,
+    planarize: false,
+  });
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.filledHoles, 0);
+  assert.equal(repaired.report.addedTriangles, 0);
+  assert.equal(repaired.report.boundaryEdges, 4);
+  assert.ok(repaired.report.warnings.includes('hole-fill-skipped-large-loop'));
+});
+
+test('repairMeshGeometry reports multiple components without removing them by default', () => {
+  const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const speck = new THREE.BufferGeometry();
+  speck.setAttribute('position', new THREE.Float32BufferAttribute([
+    30, 0, 0,
+    31, 0, 0,
+    30, 1, 0,
+  ], 3));
+  const geometry = combineGeometries([box, speck]);
+
+  const repaired = repairMeshGeometry(geometry, { planarize: false });
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.components, 2);
+  assert.equal(repaired.report.removedSmallComponents, 0);
+  assert.ok(repaired.report.warnings.includes('small-components-detected'));
+});
+
+test('repairMeshGeometry removes small components only when explicitly enabled', () => {
+  const box = new THREE.BoxGeometry(10, 10, 10).toNonIndexed();
+  const speck = new THREE.BufferGeometry();
+  speck.setAttribute('position', new THREE.Float32BufferAttribute([
+    30, 0, 0,
+    31, 0, 0,
+    30, 1, 0,
+  ], 3));
+  const geometry = combineGeometries([box, speck]);
+
+  const repaired = repairMeshGeometry(geometry, {
+    minComponentTriangles: 2,
+    planarize: false,
+    removeSmallComponents: true,
+  });
+
+  assert.ok(repaired);
+  assert.equal(repaired.report.components, 1);
+  assert.equal(repaired.report.removedSmallComponents, 1);
+  assert.equal(triangleCount(repaired.geometry), 12);
 });

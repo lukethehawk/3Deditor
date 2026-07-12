@@ -186,6 +186,22 @@ selected body are documented future steps.
 </details>
 
 <details>
+<summary><strong>Repair Mesh</strong></summary>
+
+`Repair mesh` is a conservative STL repair pass. It can weld nearby vertices,
+remove degenerate or duplicate triangles, orient triangles more consistently,
+planarize vertices close to dominant flat areas, detect boundary loops, close
+small planar holes, and report disconnected components.
+
+It is intentionally not a universal mesh fixer. It does not solve complex
+self-intersections, severe non-manifold topology, global remeshing or CAD
+reconstruction. MeshFix, MeshLab, MeshLabJS, ADMesh and CGAL were reviewed only
+as conceptual references for terminology and workflow; Forma3D does not copy or
+derive GPL/AGPL code from them.
+
+</details>
+
+<details>
 <summary><strong>2D and construction</strong></summary>
 
 The `2D` menu contains:
@@ -420,6 +436,22 @@ Non e' un offset CAD parametrico: STL sporchi, aree non-manifold, dettagli piu
 piccoli dello spessore parete e raccordi stretti possono creare
 auto-intersezioni o superfici da verificare nello slicer. Fori di drenaggio e
 svuotamento del solo corpo selezionato restano passi futuri.
+
+</details>
+
+<details>
+<summary><strong>Repair Mesh</strong></summary>
+
+`Repair mesh` e' una riparazione STL conservativa. Puo saldare vertici vicini,
+rimuovere triangoli degeneri o duplicati, rendere piu coerente l'orientamento
+dei triangoli, planarizzare vertici vicini a grandi superfici piatte, rilevare
+loop di bordo, chiudere piccoli buchi planari e segnalare componenti scollegate.
+
+Non e' un riparatore universale. Non risolve self-intersection complesse,
+topologie non-manifold gravi, remeshing globale o ricostruzione CAD. MeshFix,
+MeshLab, MeshLabJS, ADMesh e CGAL sono stati consultati solo come riferimenti
+concettuali per terminologia e workflow; Forma3D non copia e non deriva codice
+GPL/AGPL da questi progetti.
 
 </details>
 

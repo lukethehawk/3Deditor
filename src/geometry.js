@@ -221,6 +221,333 @@ function analyzeTriangleTopology(triangles) {
   };
 }
 
+function connectedTriangleComponents(triangles, edgeMap = buildTriangleEdgeMap(triangles)) {
+  const neighbors = new Map();
+  for (const edges of edgeMap.values()) {
+    if (edges.length < 2) continue;
+    for (let index = 0; index < edges.length; index += 1) {
+      for (let nextIndex = index + 1; nextIndex < edges.length; nextIndex += 1) {
+        const a = edges[index].triangleIndex;
+        const b = edges[nextIndex].triangleIndex;
+        if (!neighbors.has(a)) neighbors.set(a, []);
+        if (!neighbors.has(b)) neighbors.set(b, []);
+        neighbors.get(a).push(b);
+        neighbors.get(b).push(a);
+      }
+    }
+  }
+
+  const visited = new Set();
+  const components = [];
+  for (let seed = 0; seed < triangles.length; seed += 1) {
+    if (visited.has(seed)) continue;
+    const component = [];
+    const stack = [seed];
+    visited.add(seed);
+    while (stack.length) {
+      const current = stack.pop();
+      component.push(current);
+      for (const next of neighbors.get(current) ?? []) {
+        if (visited.has(next)) continue;
+        visited.add(next);
+        stack.push(next);
+      }
+    }
+    components.push(component);
+  }
+  return components;
+}
+
+function collectBoundaryLoopsFromTriangles(points, triangles, edgeMap = buildTriangleEdgeMap(triangles)) {
+  const boundaryEdges = [];
+  for (const edges of edgeMap.values()) {
+    if (edges.length === 1) {
+      const [edge] = edges;
+      boundaryEdges.push({
+        from: edge.from,
+        to: edge.to,
+        triangleIndex: edge.triangleIndex,
+      });
+    }
+  }
+
+  const vertexEdges = new Map();
+  boundaryEdges.forEach((edge, edgeIndex) => {
+    for (const vertex of [edge.from, edge.to]) {
+      if (!vertexEdges.has(vertex)) vertexEdges.set(vertex, []);
+      vertexEdges.get(vertex).push(edgeIndex);
+    }
+  });
+
+  const visitedEdges = new Set();
+  const loops = [];
+  for (let seed = 0; seed < boundaryEdges.length; seed += 1) {
+    if (visitedEdges.has(seed)) continue;
+
+    const componentEdges = [];
+    const edgeQueue = [seed];
+    visitedEdges.add(seed);
+    for (let index = 0; index < edgeQueue.length; index += 1) {
+      const edgeIndex = edgeQueue[index];
+      componentEdges.push(edgeIndex);
+      const edge = boundaryEdges[edgeIndex];
+      for (const vertex of [edge.from, edge.to]) {
+        for (const nextEdge of vertexEdges.get(vertex) ?? []) {
+          if (visitedEdges.has(nextEdge)) continue;
+          visitedEdges.add(nextEdge);
+          edgeQueue.push(nextEdge);
+        }
+      }
+    }
+
+    const componentSet = new Set(componentEdges);
+    const vertices = new Set();
+    for (const edgeIndex of componentEdges) {
+      vertices.add(boundaryEdges[edgeIndex].from);
+      vertices.add(boundaryEdges[edgeIndex].to);
+    }
+
+    const degrees = [...vertices].map((vertex) => (
+      (vertexEdges.get(vertex) ?? []).filter((edgeIndex) => componentSet.has(edgeIndex)).length
+    ));
+    const branched = degrees.some((degree) => degree > 2);
+    const closed = componentEdges.length >= 3 && degrees.every((degree) => degree === 2);
+    const startVertex = closed
+      ? boundaryEdges[componentEdges[0]].from
+      : [...vertices].find((vertex) => (
+        (vertexEdges.get(vertex) ?? []).filter((edgeIndex) => componentSet.has(edgeIndex)).length === 1
+      )) ?? boundaryEdges[componentEdges[0]].from;
+
+    const ordered = [startVertex];
+    const orderedEdges = new Set();
+    let current = startVertex;
+    let guard = componentEdges.length + 2;
+    while (guard > 0) {
+      guard -= 1;
+      const nextEdge = (vertexEdges.get(current) ?? []).find((edgeIndex) => (
+        componentSet.has(edgeIndex) && !orderedEdges.has(edgeIndex)
+      ));
+      if (nextEdge == null) break;
+      orderedEdges.add(nextEdge);
+      const edge = boundaryEdges[nextEdge];
+      current = edge.from === current ? edge.to : edge.from;
+      ordered.push(current);
+      if (closed && current === startVertex) break;
+    }
+
+    const orderedVertices = closed && ordered[ordered.length - 1] === startVertex
+      ? ordered.slice(0, -1)
+      : ordered;
+    loops.push({
+      branched,
+      closed: closed && orderedEdges.size === componentEdges.length && ordered[ordered.length - 1] === startVertex,
+      edges: componentEdges.map((edgeIndex) => boundaryEdges[edgeIndex]),
+      points: orderedVertices.map((vertex) => points[vertex]),
+      supportingTriangles: new Set(componentEdges.map((edgeIndex) => boundaryEdges[edgeIndex].triangleIndex)).size,
+      vertices: orderedVertices,
+    });
+  }
+
+  return loops;
+}
+
+function boundaryLoopPlane(points, vertices) {
+  const normal = new THREE.Vector3();
+  for (let index = 0; index < vertices.length; index += 1) {
+    const current = points[vertices[index]];
+    const next = points[vertices[(index + 1) % vertices.length]];
+    normal.x += (current.y - next.y) * (current.z + next.z);
+    normal.y += (current.z - next.z) * (current.x + next.x);
+    normal.z += (current.x - next.x) * (current.y + next.y);
+  }
+  if (normal.lengthSq() < 1e-12) return null;
+  normal.normalize();
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, points[vertices[0]]);
+  return { normal, plane };
+}
+
+function boundaryLoopDiameter(points, vertices) {
+  const box = new THREE.Box3();
+  for (const vertex of vertices) box.expandByPoint(points[vertex]);
+  return box.getSize(new THREE.Vector3()).length();
+}
+
+function triangulateBoundaryLoop(points, vertices, axis) {
+  const polygon = vertices.map((vertex) => ({
+    vertex,
+    projected: projection2D(points[vertex], axis),
+  }));
+  const triangles = [];
+  const sign = Math.sign(projectedArea(vertices.map((vertex) => points[vertex]), axis)) || 1;
+  let guard = polygon.length * polygon.length;
+
+  while (polygon.length > 3 && guard > 0) {
+    guard -= 1;
+    let clipped = false;
+    for (let index = 0; index < polygon.length; index += 1) {
+      const previous = polygon[(index - 1 + polygon.length) % polygon.length];
+      const current = polygon[index];
+      const next = polygon[(index + 1) % polygon.length];
+      const cross = (
+        (current.projected.x - previous.projected.x) * (next.projected.y - current.projected.y)
+        - (current.projected.y - previous.projected.y) * (next.projected.x - current.projected.x)
+      ) * sign;
+      if (cross <= 1e-10) continue;
+
+      const containsPoint = polygon.some((candidate, candidateIndex) => {
+        if (
+          candidateIndex === index
+          || candidateIndex === (index - 1 + polygon.length) % polygon.length
+          || candidateIndex === (index + 1) % polygon.length
+        ) {
+          return false;
+        }
+        return pointInTriangle2D(candidate.projected, previous.projected, current.projected, next.projected, sign);
+      });
+      if (containsPoint) continue;
+
+      triangles.push([previous.vertex, current.vertex, next.vertex]);
+      polygon.splice(index, 1);
+      clipped = true;
+      break;
+    }
+    if (!clipped) break;
+  }
+
+  if (polygon.length === 3) {
+    triangles.push([polygon[0].vertex, polygon[1].vertex, polygon[2].vertex]);
+  } else if (!triangles.length && vertices.length >= 3) {
+    for (let index = 1; index < vertices.length - 1; index += 1) {
+      triangles.push([vertices[0], vertices[index], vertices[index + 1]]);
+    }
+  }
+  return triangles;
+}
+
+function fillConservativeBoundaryHoles(points, triangles, options = {}) {
+  const warnings = [];
+  const fillHoles = options.fillHoles !== false && options.preserveWinding !== true;
+  if (!fillHoles) {
+    return {
+      addedTriangles: 0,
+      filledHoles: 0,
+      loops: collectBoundaryLoopsFromTriangles(points, triangles),
+      warnings,
+    };
+  }
+
+  const triangleLimit = Math.max(options.holeFillTriangleLimit ?? MODEL_COMPLEXITY_THRESHOLDS.largeTriangles, 0);
+  if (triangles.length > triangleLimit) {
+    return {
+      addedTriangles: 0,
+      filledHoles: 0,
+      loops: collectBoundaryLoopsFromTriangles(points, triangles),
+      warnings: ['hole-fill-skipped-large-mesh'],
+    };
+  }
+
+  const maxHoleEdges = Math.max(options.maxHoleEdges ?? 48, 3);
+  const maxHoleDiameter = Math.max(options.maxHoleDiameter ?? 80, 0);
+  const planarityTolerance = Math.max(options.holePlanarityTolerance ?? 0.05, 0);
+  let addedTriangles = 0;
+  let filledHoles = 0;
+  let loops = collectBoundaryLoopsFromTriangles(points, triangles);
+
+  for (const loop of loops) {
+    if (!loop.closed || loop.branched) {
+      warnings.push('hole-fill-skipped-open-or-branched-loop');
+      continue;
+    }
+    if (loop.edges.length > maxHoleEdges) {
+      warnings.push('hole-fill-skipped-large-loop');
+      continue;
+    }
+    if (loop.supportingTriangles <= 2) {
+      warnings.push('hole-fill-skipped-open-sheet');
+      continue;
+    }
+    const diameter = boundaryLoopDiameter(points, loop.vertices);
+    if (diameter > maxHoleDiameter) {
+      warnings.push('hole-fill-skipped-large-diameter');
+      continue;
+    }
+    const planeInfo = boundaryLoopPlane(points, loop.vertices);
+    if (!planeInfo) {
+      warnings.push('hole-fill-skipped-ambiguous-plane');
+      continue;
+    }
+    const maxDistance = loop.vertices.reduce((max, vertex) =>
+      Math.max(max, Math.abs(planeInfo.plane.distanceToPoint(points[vertex]))), 0);
+    if (maxDistance > planarityTolerance) {
+      warnings.push('hole-fill-skipped-non-planar-loop');
+      continue;
+    }
+
+    const axis = Math.abs(planeInfo.normal.x) > Math.abs(planeInfo.normal.y)
+      && Math.abs(planeInfo.normal.x) > Math.abs(planeInfo.normal.z)
+      ? 0
+      : Math.abs(planeInfo.normal.y) > Math.abs(planeInfo.normal.z)
+        ? 1
+        : 2;
+    const newTriangles = triangulateBoundaryLoop(points, loop.vertices, axis)
+      .filter((triangle) => triangleAreaSquared(points, triangle[0], triangle[1], triangle[2]) > 1e-16);
+    if (!newTriangles.length) {
+      warnings.push('hole-fill-skipped-triangulation-failed');
+      continue;
+    }
+    triangles.push(...newTriangles);
+    addedTriangles += newTriangles.length;
+    filledHoles += 1;
+  }
+
+  loops = collectBoundaryLoopsFromTriangles(points, triangles);
+  return {
+    addedTriangles,
+    filledHoles,
+    loops,
+    warnings,
+  };
+}
+
+function removeSmallTriangleComponents(triangles, options = {}) {
+  const components = connectedTriangleComponents(triangles);
+  const minComponentTriangles = Math.max(options.minComponentTriangles ?? 4, 1);
+  const smallComponents = components.filter((component) => component.length < minComponentTriangles);
+  const removeSmallComponents = options.removeSmallComponents === true;
+  if (!removeSmallComponents || !smallComponents.length || smallComponents.length === components.length) {
+    return {
+      components,
+      removedSmallComponents: 0,
+      smallComponentsDetected: smallComponents.length,
+      triangles,
+    };
+  }
+
+  const removeTriangles = new Set(smallComponents.flat());
+  return {
+    components: components.filter((component) => !component.some((triangle) => removeTriangles.has(triangle))),
+    removedSmallComponents: smallComponents.length,
+    smallComponentsDetected: smallComponents.length,
+    triangles: triangles.filter((_, index) => !removeTriangles.has(index)),
+  };
+}
+
+function compactIndexedTriangles(points, triangles) {
+  const used = new Map();
+  const compactedPoints = [];
+  const compactedTriangles = triangles.map((triangle) => triangle.map((vertex) => {
+    if (!used.has(vertex)) {
+      used.set(vertex, compactedPoints.length);
+      compactedPoints.push(points[vertex]);
+    }
+    return used.get(vertex);
+  }));
+  return {
+    points: compactedPoints,
+    triangles: compactedTriangles,
+  };
+}
+
 function normalizePlaneNormal(normal) {
   const result = normal.clone().normalize();
   const components = [result.x, result.y, result.z];
@@ -348,6 +675,7 @@ export function repairMeshGeometry(geometry, options = {}) {
   const seenTriangles = new Set();
   let removedDegenerateTriangles = 0;
   let removedDuplicateTriangles = 0;
+  const warnings = [];
 
   for (let triangleIndex = 0; triangleIndex < trianglesBefore; triangleIndex += 1) {
     const aSource = index ? index.getX(triangleIndex * 3) : triangleIndex * 3;
@@ -410,9 +738,35 @@ export function repairMeshGeometry(geometry, options = {}) {
     triangles.push(...cleanedTriangles);
   }
   if (!triangles.length) return null;
+  const holeFill = fillConservativeBoundaryHoles(points, triangles, {
+    ...options,
+    areaTolerance,
+  });
+  warnings.push(...holeFill.warnings);
+
+  const componentCleanup = removeSmallTriangleComponents(triangles, options);
+  if (componentCleanup.triangles !== triangles) {
+    triangles.length = 0;
+    triangles.push(...componentCleanup.triangles);
+  }
+  if (componentCleanup.smallComponentsDetected && options.removeSmallComponents !== true) {
+    warnings.push('small-components-detected');
+  }
+  if (!triangles.length) return null;
+
+  const compacted = compactIndexedTriangles(points, triangles);
+  points.length = 0;
+  points.push(...compacted.points);
+  triangles.length = 0;
+  triangles.push(...compacted.triangles);
+
   const topology = options.preserveWinding === true
     ? analyzeTriangleTopology(triangles)
     : orientTrianglesConsistently(points, triangles);
+  const finalLoops = collectBoundaryLoopsFromTriangles(points, triangles);
+  if (topology.boundaryEdges) warnings.push('boundary-edges-remaining');
+  if (topology.nonManifoldEdges) warnings.push('non-manifold-edges-remaining');
+
   const positions = [];
   for (const point of points) {
     positions.push(point.x, point.y, point.z);
@@ -433,17 +787,22 @@ export function repairMeshGeometry(geometry, options = {}) {
   return {
     geometry: result,
     report: {
+      addedTriangles: holeFill.addedTriangles,
       boundaryEdges: topology.boundaryEdges,
+      boundaryLoops: finalLoops.length,
       components: topology.components,
+      filledHoles: holeFill.filledHoles,
       flippedTriangles: topology.flippedTriangles,
       nonManifoldEdges: topology.nonManifoldEdges,
       removedDegenerateTriangles,
       removedDuplicateTriangles,
+      removedSmallComponents: componentCleanup.removedSmallComponents,
       planarizedVertices,
       trianglesAfter: triangles.length,
       trianglesBefore,
       verticesAfter: points.length,
       verticesBefore,
+      warnings: [...new Set(warnings)],
       weldedVertices: verticesBefore - points.length,
     },
   };

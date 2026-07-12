@@ -969,6 +969,22 @@
       </div>
     </div>
 
+    <div id="repair-report-overlay" class="repair-report-overlay" role="dialog" aria-modal="true" aria-labelledby="repair-report-title" hidden>
+      <div class="repair-report-dialog">
+        <div class="repair-report-heading">
+          <span class="eyebrow">REPAIR MESH</span>
+          <button id="repair-report-close" class="icon-button" type="button" aria-label="Chiudi">x</button>
+        </div>
+        <h2 id="repair-report-title">Riparazione completata</h2>
+        <p id="repair-report-summary"></p>
+        <dl id="repair-report-metrics" class="repair-report-metrics"></dl>
+        <div id="repair-report-warning-box" class="repair-report-warning-box" hidden>
+          <strong id="repair-report-warning-title">Attenzione</strong>
+          <ul id="repair-report-warnings"></ul>
+        </div>
+      </div>
+    </div>
+
     <footer class="statusbar">
       <div class="history-actions">
         <button id="undo" disabled title="Annulla (Ctrl+Z)">Annulla</button>

@@ -295,6 +295,10 @@ ui.projectInput.addEventListener('change', (event) => {
 });
 ui.removeModelButton.addEventListener('click', removeCurrentModel);
 ui.repairModelButton.addEventListener('click', repairCurrentMesh);
+ui.repairReportClose?.addEventListener('click', hideRepairReport);
+ui.repairReportOverlay?.addEventListener('click', (event) => {
+  if (event.target === ui.repairReportOverlay) hideRepairReport();
+});
 ui.exportButton.addEventListener('click', exportStl);
 ui.exportObjButton.addEventListener('click', exportObj);
 ui.exportSelectionButton.addEventListener('click', () => exportSelection('stl'));
@@ -716,6 +720,11 @@ canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 window.addEventListener('keydown', (event) => {
   if (appBusy) {
     event.preventDefault();
+    return;
+  }
+  if (event.key === 'Escape' && ui.repairReportOverlay && !ui.repairReportOverlay.hidden) {
+    event.preventDefault();
+    hideRepairReport();
     return;
   }
   if (event.key === 'Escape' && cancelPushPullHandleDrag()) {

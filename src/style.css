@@ -1196,6 +1196,97 @@ button {
   cursor: wait;
 }
 
+.repair-report-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 82;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(32 39 43 / 30%);
+  backdrop-filter: blur(2px);
+}
+
+.repair-report-overlay[hidden] {
+  display: none;
+}
+
+.repair-report-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 34px));
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid #cfd5d7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 55px rgb(22 31 36 / 26%);
+}
+
+.repair-report-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.repair-report-dialog h2 {
+  margin: 4px 0 8px;
+  font-size: 20px;
+}
+
+.repair-report-dialog p {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.repair-report-metrics {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dde3e5;
+  border-radius: 6px;
+  background: #f6f8f8;
+  font-size: 12px;
+}
+
+.repair-report-metrics dt {
+  color: #68747a;
+}
+
+.repair-report-metrics dd {
+  margin: 0;
+  color: #263239;
+  font-weight: 800;
+  text-align: right;
+}
+
+.repair-report-warning-box {
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid #e5b88f;
+  border-radius: 6px;
+  background: #fff6ed;
+}
+
+.repair-report-warning-box strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #9d4f1d;
+  font-size: 12px;
+}
+
+.repair-report-warning-box ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #5f5148;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 @keyframes busy-spin {
   to {
     transform: rotate(360deg);

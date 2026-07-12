@@ -257,10 +257,27 @@ STL has no unit metadata; Forma3D treats units as millimeters.
 - propagate triangle orientation along shared edges;
 - orient closed components outward when possible;
 - conservatively planarize vertices near large almost-flat faces;
-- report remaining open boundaries and non-manifold edges.
+- detect boundary loops and distinguish closed loops from open/branched chains;
+- conservatively close only small planar boundary loops;
+- report remaining open boundaries, non-manifold edges, connected components and
+  warnings.
 
-Repair is conservative: it does not invent missing surfaces or automatically
-close all holes.
+Repair is conservative. It can close a simple missing planar face, such as a
+small hole in an otherwise coherent STL, but it skips large, non-planar,
+branched, ambiguous or open-sheet boundaries. It does not attempt complex
+self-intersection repair, global remeshing, voxelization, severe non-manifold
+repair or CAD reconstruction.
+
+The implementation is original JavaScript/Three.js code under Forma3D's MIT
+license. ADMesh, MeshFix, MeshLab, MeshLabJS and CGAL are useful conceptual
+references for terminology and expected workflows, but their GPL/AGPL/LGPL code
+is not copied, translated, ported or derived here.
+
+After `Repair mesh`, the UI keeps the existing busy overlay during processing
+and opens a compact report dialog with triangles/vertices before and after,
+welded vertices, removed triangles, filled holes, added triangles, remaining
+boundary loops, non-manifold edges, components and warnings. The status bar
+shows the short version of the same report.
 
 ## Face and Object Selection
 
@@ -873,22 +890,30 @@ sulla triangolazione STL senza cercare di ricostruire un solido CAD:
   lasciano micro-triangoli leggermente fuori piano;
 - dopo la planarizzazione ripulisce di nuovo eventuali triangoli diventati
   degeneri o duplicati;
+- rileva i boundary loop distinguendo loop chiusi, catene aperte e contorni
+  ramificati;
+- chiude in modo conservativo solo piccoli buchi planari;
 - restituisce un report con triangoli prima/dopo, vertici saldati, triangoli
-  rimossi, vertici planarizzati, componenti, bordi aperti e spigoli
-  non-manifold.
+  rimossi, vertici planarizzati, buchi chiusi, triangoli aggiunti, componenti,
+  bordi aperti, boundary loop, spigoli non-manifold e warning.
 
-Questa riparazione e' conservativa: non chiude automaticamente buchi e non
-inventa superfici mancanti. Se il report indica bordi aperti o spigoli
-non-manifold, la mesh resta problematica per alcune booleane. La chiusura buchi
-dovra' essere una funzione separata, idealmente con anteprima o conferma, per
-non tappare aperture volutamente presenti nel pezzo.
+Questa riparazione e' conservativa: puo chiudere un piccolo buco planare, per
+esempio una faccia mancante semplice, ma salta loop grandi, non planari,
+ramificati, ambigui o superfici aperte isolate. Se il report indica bordi aperti
+o spigoli non-manifold, la mesh resta problematica per alcune booleane e puo
+servire lo slicer o uno strumento mesh dedicato.
 La planarizzazione usa una tolleranza piccola e corregge solo vertici gia'
 molto vicini a un piano dominante: non deve trasformare smussi, superfici curve
 o inclinazioni volute in facce piatte.
 
 La UI mostra un overlay modale durante il calcolo, applica la mesh riparata con
 undo disponibile, aggiorna snap point, bordi visibili e normali tramite
-`setModelGeometry()`.
+`setModelGeometry()`, poi apre un popup compatto con dettagli e warning della
+riparazione.
+
+Forma3D resta MIT. ADMesh, MeshFix, MeshLab, MeshLabJS e CGAL sono riferimenti
+concettuali utili per terminologia e workflow, ma il loro codice GPL/AGPL/LGPL
+non viene copiato, tradotto, portato o derivato.
 
 ## Gestione modello corrente
 
