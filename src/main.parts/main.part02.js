@@ -1051,6 +1051,15 @@ function selectTransformReferenceAt(clientX, clientY) {
     setStatus('Non riesco a selezionare il corpo collegato alla faccia.');
     return;
   }
+  if (highlight) {
+    scene.remove(highlight);
+    disposeObject(highlight);
+  }
+  const target = currentTransformTarget();
+  if (target) {
+    highlight = createTransformReferenceOverlay(model.geometry, region.triangles, target.box);
+    addTransientOverlay(highlight, 'selection');
+  }
   setStatus('Faccia di riferimento selezionata. Sposta e scala agiscono sul corpo collegato.');
   updateTransformQuickActions();
 }
@@ -1134,10 +1143,12 @@ function rotateSelectedFaceDown(placeOnGround = false) {
   const quaternion = new THREE.Quaternion().setFromUnitVectors(normal, new THREE.Vector3(0, 0, -1));
   const rotationMatrix = transformRotationAround(center, quaternion);
   let matrix = rotationMatrix;
+  const rotatedBox = transformedTargetBox(target, rotationMatrix);
+  if (!rotatedBox) return;
   if (placeOnGround) {
-    const rotatedBox = transformedTargetBox(target, rotationMatrix);
-    if (!rotatedBox) return;
     matrix = new THREE.Matrix4().makeTranslation(0, 0, -rotatedBox.min.z).multiply(rotationMatrix);
+  } else {
+    matrix = new THREE.Matrix4().makeTranslation(0, 0, target.box.min.z - rotatedBox.min.z).multiply(rotationMatrix);
   }
   applyMatrixToTransformTarget(
     matrix,
@@ -1910,6 +1921,16 @@ function createFaceSelectionOverlay(geometry, triangles) {
   const wire = new THREE.LineSegments(wireGeometry, selectionLineMaterial);
   wire.renderOrder = 21;
   group.add(wire);
+  return group;
+}
+
+function createTransformReferenceOverlay(geometry, faceTriangles, bodyBox) {
+  const group = createFaceSelectionOverlay(geometry, faceTriangles);
+  const bodyOverlay = createSelectionBoxOverlay(bodyBox);
+  bodyOverlay.traverse((child) => {
+    child.renderOrder = Math.max(child.renderOrder ?? 0, 18);
+  });
+  group.add(bodyOverlay);
   return group;
 }
 
