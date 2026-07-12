@@ -343,21 +343,24 @@ selected immediately for Push/Pull.
 It lives in the `Booleans` menu but does not use CSG: it calls
 `cutPlaneGeometry()` in `src/geometry.js`.
 
-The UI asks for cut axis, cut mode, new length in millimeters and whether to
-cap a side cut. The plane position is derived from the current bounding box and
-the requested new length, so a user can reduce depth/length without
-understanding a full CAD plane workflow.
+The UI asks for cut axis, length to remove and cut center coordinate. The cut
+window is computed as `[center - length / 2, center + length / 2]` on the
+selected axis. If that window stays inside the current bounding box, Shorten
+uses the middle-section workflow and closes the gap. If the window touches or
+crosses an edge, Shorten automatically turns it into a side cut and keeps the
+opposite side.
 
 `cutPlaneGeometry()` classifies each triangle against the axis-aligned cut
 plane, keeps triangles on the chosen side, removes triangles on the discarded
 side, clips intersecting triangles, collects intersection segments, rebuilds
 cut loops and triangulates each loop as a cap when enabled.
 
-`removeMiddleSectionGeometry()` supports the `Middle section` mode. It performs
-two capless plane cuts, removes the section between them, translates the positive
-side back by the removed gap, combines the two remaining sections and lets the
-repair pass weld coincident vertices. This is the workflow for preserving both
-functional ends of a part while shortening a mostly regular middle span.
+`removeMiddleSectionGeometry()` supports the automatically detected internal cut
+mode. It performs two capless plane cuts, removes the section between them,
+translates the positive side back by the removed gap, combines the two remaining
+sections and lets the repair pass weld coincident vertices. This is the workflow
+for preserving both functional ends of a part while shortening a mostly regular
+middle span.
 
 The preview is deliberately lightweight: blue plane plus orange removed volume
 from the bounding box. The mesh is not continuously cut while editing inputs,
@@ -1094,22 +1097,24 @@ Le primitive sono create in `src/primitives.js`.
 scalare il pezzo. Vive nel menu `Booleans`, ma non usa CSG: chiama
 `cutPlaneGeometry()` in `src/geometry.js`.
 
-La UI chiede asse di taglio, modalita di taglio, nuova lunghezza in millimetri e
-chiusura cap per i tagli laterali. La posizione del piano viene ricavata dal
-bounding box corrente e dalla nuova lunghezza richiesta, cosi l'utente puo'
-accorciare un pezzo senza gestire un workflow CAD completo.
+La UI chiede asse di taglio, lunghezza da rimuovere e coordinata del centro
+taglio. La finestra di taglio viene calcolata come `[centro - lunghezza / 2,
+centro + lunghezza / 2]` sull'asse scelto. Se la finestra resta dentro al
+bounding box corrente, Accorcia usa il flusso mediano e richiude il vuoto. Se la
+finestra tocca o supera un bordo, Accorcia passa automaticamente al taglio
+laterale e mantiene il lato opposto.
 
 `cutPlaneGeometry()` classifica ogni triangolo rispetto al piano assiale,
 mantiene i triangoli dal lato scelto, elimina quelli dal lato scartato, taglia i
 triangoli intersecati, raccoglie i segmenti di intersezione, ricostruisce i loop
 e triangola ogni loop come tappo quando l'opzione e' attiva.
 
-`removeMiddleSectionGeometry()` supporta la modalita `Sezione mediana`. Esegue
-due tagli senza cap, rimuove la sezione tra i due piani, trasla il lato positivo
-indietro della distanza rimossa, combina le due sezioni rimaste e lascia alla
-riparazione leggera il weld dei vertici coincidenti. Questo flusso serve quando
-si vogliono preservare entrambe le estremita funzionali di un pezzo accorciando
-solo una zona centrale abbastanza regolare.
+`removeMiddleSectionGeometry()` supporta la modalita interna rilevata in
+automatico. Esegue due tagli senza cap, rimuove la sezione tra i due piani,
+trasla il lato positivo indietro della distanza rimossa, combina le due sezioni
+rimaste e lascia alla riparazione leggera il weld dei vertici coincidenti.
+Questo flusso serve quando si vogliono preservare entrambe le estremita
+funzionali di un pezzo accorciando solo una zona centrale abbastanza regolare.
 
 La preview e' volutamente leggera: piano blu e volume arancione rimosso dal
 bounding box. La mesh non viene tagliata continuamente mentre si cambiano gli
@@ -1158,7 +1163,7 @@ Limiti noti:
 - i fori di drenaggio sono TODO;
 - lo svuotamento del solo corpo selezionato e' TODO.
 
-Interazione importante con `Accorcia`: il flusso `Sezione mediana` usa
+Interazione importante con `Accorcia`: il flusso mediano rilevato automaticamente usa
 `repairMeshGeometry(..., { preserveWinding: true })`. La riparazione standard
 orienta ogni componente con volume positivo, cosa utile per solidi normali ma
 sbagliata per mesh svuotate, perche il guscio interno deve mantenere winding

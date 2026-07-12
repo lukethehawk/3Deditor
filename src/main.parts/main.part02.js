@@ -847,8 +847,8 @@ function updateInspector() {
     },
     shorten: {
       title: 'Accorcia',
-      description: 'Taglia lungo X, Y o Z mantenendo invariato il lato scelto. Utile per ridurre profondita o lunghezza di STL funzionali.',
-      hint: 'Accorcia: scegli asse e nuova lunghezza, poi applica il taglio.',
+      description: 'Taglia lungo X, Y o Z scegliendo lunghezza rimossa e centro del taglio. Utile per ridurre profondita o lunghezza di STL funzionali.',
+      hint: 'Accorcia: scegli asse, lunghezza rimossa e centro taglio, poi applica.',
     },
     hollow: {
       title: 'Svuota',
@@ -1037,7 +1037,7 @@ function setTool(tool) {
     gear: 'Ingranaggio: clicca il centro base, poi regola denti, modulo, spessore e foro.',
     plane: 'Piani: clicca il centro, scegli forma e dimensioni, poi applica la faccia piatta.',
     cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
-    shorten: 'Accorcia: regola asse, lato mantenuto e nuova lunghezza.',
+    shorten: 'Accorcia: regola asse, lunghezza rimossa e centro taglio.',
     hollow: 'Svuota: imposta lo spessore parete e applica al modello intero.',
     text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
     line: 'Linea: crea guide indipendenti. Gli altri strumenti si agganciano a estremi, midpoint e segmenti.',
@@ -1460,11 +1460,22 @@ function selectFaceRegion(region, point, options = {}) {
       : 'La zona blu verra spostata lungo la sua normale.',
   } = options;
   clearSelection();
+  const selectionPoint = point?.clone?.() ?? new THREE.Vector3();
+  const selectionNormal = region.normal.clone();
+  if (regionHasOpenBoundary(model.geometry, region)) {
+    const viewDirection = camera.position.clone().sub(selectionPoint);
+    if (viewDirection.lengthSq() > 1e-8 && selectionNormal.dot(viewDirection) < 0) {
+      selectionNormal.negate();
+    }
+  }
   selected = {
     type: 'face',
-    point: point?.clone?.() ?? new THREE.Vector3(),
-    normal: region.normal.clone(),
-    region,
+    point: selectionPoint,
+    normal: selectionNormal.clone(),
+    region: {
+      ...region,
+      normal: selectionNormal,
+    },
   };
 
   highlight = createFaceSelectionOverlay(model.geometry, region.triangles);

@@ -746,7 +746,7 @@
           <div class="hole-readout">
             <span>Taglio modello</span>
             <strong id="shorten-info">Accorcia il modello con un piano di taglio e richiudi la superficie.</strong>
-            <small>Il taglio non scala il modello: elimina una parte e lascia invariato il lato mantenuto.</small>
+            <small>Il taglio non scala il modello: sposta il volume arancione e decide automaticamente se richiudere al centro o tagliare un lato.</small>
           </div>
           <label for="shorten-axis">Asse taglio</label>
           <select id="shorten-axis">
@@ -754,21 +754,17 @@
             <option value="y" selected>Y</option>
             <option value="z">Z</option>
           </select>
-          <label for="shorten-keep-side">Modalita taglio</label>
-          <select id="shorten-keep-side">
-            <option value="negative">Lato negativo</option>
-            <option value="positive">Lato positivo</option>
-            <option value="middle">Sezione mediana</option>
-          </select>
-          <label for="shorten-length">Nuova lunghezza</label>
+          <label for="shorten-length">Lunghezza da rimuovere</label>
           <div class="field-with-unit">
             <input id="shorten-length" type="text" inputmode="decimal" min="0.1" step="0.1" value="10" />
             <span>mm</span>
           </div>
-          <div class="toggle-row single">
-            <label><input id="shorten-cap" type="checkbox" checked /> Chiudi superficie tagliata</label>
+          <label for="shorten-center">Centro taglio</label>
+          <div class="field-with-unit">
+            <input id="shorten-center" type="text" inputmode="decimal" step="0.1" value="0" />
+            <span>mm</span>
           </div>
-          <small id="shorten-readout">Il piano blu indica il taglio. Lato mantenuto: scegli negativo o positivo.</small>
+          <small id="shorten-readout">Il volume arancione indica la parte rimossa. Se tocca un bordo diventa un taglio laterale.</small>
           <button id="apply-shorten" type="button" class="action-button danger" disabled>Applica taglio</button>
           <button id="reset-shorten" type="button" class="secondary-button">Ricomincia</button>
         </form>

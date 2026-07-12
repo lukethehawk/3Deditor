@@ -541,9 +541,8 @@ ui.shortenAxis.addEventListener('change', () => {
   drawShortenPreview();
 });
 [
-  ui.shortenKeepSide,
   ui.shortenLength,
-  ui.shortenCap,
+  ui.shortenCenter,
 ].forEach((input) => {
   input.addEventListener('input', drawShortenPreview);
   input.addEventListener('change', drawShortenPreview);
@@ -555,7 +554,7 @@ ui.applyShorten.addEventListener('click', (event) => {
 document.querySelector('#reset-shorten').addEventListener('click', () => {
   resetShortenDefaults();
   drawShortenPreview();
-  setStatus('Accorcia: regola asse, lato mantenuto e nuova lunghezza.');
+  setStatus('Accorcia: regola asse, lunghezza rimossa e centro taglio.');
 });
 ui.hollowThickness.addEventListener('input', updateHollowState);
 ui.hollowThickness.addEventListener('change', updateHollowState);

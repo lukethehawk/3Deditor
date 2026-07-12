@@ -764,8 +764,10 @@ function resetShortenDefaults() {
   }
   const size = box.getSize(new THREE.Vector3());
   const axis = shortenAxisIndex();
-  const length = Math.max(axisComponent(size, axis) * 0.5, 0.1);
-  ui.shortenLength.value = formatDecimal(length);
+  const removeLength = Math.max(axisComponent(size, axis) * 0.5, 0.1);
+  const center = axisComponent(box.getCenter(new THREE.Vector3()), axis);
+  ui.shortenLength.value = formatDecimal(removeLength);
+  ui.shortenCenter.value = formatDecimal(center);
   ui.applyShorten.disabled = false;
 }
 
@@ -775,36 +777,79 @@ function shortenStateFromInputs() {
   const axis = shortenAxisIndex();
   const size = box.getSize(new THREE.Vector3());
   const currentLength = axisComponent(size, axis);
-  const requestedLength = parseDecimal(ui.shortenLength.value, 0);
-  if (!(requestedLength > 0) || !(requestedLength < currentLength)) {
+  const removeLength = parseDecimal(ui.shortenLength.value, 0);
+  if (!(removeLength > 0) || !(removeLength < currentLength)) {
     return {
       error: currentLanguage === 'en'
-        ? `New length must be greater than 0 and less than ${formatMillimeters(currentLength)}.`
-        : `La nuova lunghezza deve essere maggiore di 0 e minore di ${formatMillimeters(currentLength)}.`,
+        ? `Length to remove must be greater than 0 and less than ${formatMillimeters(currentLength)}.`
+        : `La lunghezza da rimuovere deve essere maggiore di 0 e minore di ${formatMillimeters(currentLength)}.`,
+    };
+  }
+  const cutCenter = parseDecimal(ui.shortenCenter.value, NaN);
+  if (!Number.isFinite(cutCenter)) {
+    return {
+      error: currentLanguage === 'en'
+        ? 'Cut center must be a valid coordinate.'
+        : 'Il centro taglio deve essere una coordinata valida.',
     };
   }
   const min = axisComponent(box.min, axis);
   const max = axisComponent(box.max, axis);
-  const keepSide = ['positive', 'middle'].includes(ui.shortenKeepSide.value)
-    ? ui.shortenKeepSide.value
-    : 'negative';
-  const planePosition = keepSide === 'negative'
-    ? min + requestedLength
-    : max - requestedLength;
-  const removedLength = currentLength - requestedLength;
-  const middleStart = min + requestedLength * 0.5;
-  const middleEnd = middleStart + removedLength;
+  const tolerance = Math.max(currentLength * 1e-6, 1e-6);
+  const rawStart = cutCenter - removeLength / 2;
+  const rawEnd = cutCenter + removeLength / 2;
+  if (rawEnd <= min + tolerance || rawStart >= max - tolerance) {
+    return {
+      error: currentLanguage === 'en'
+        ? `Cut volume must overlap the model between ${formatMillimeters(min)} and ${formatMillimeters(max)}.`
+        : `Il volume di taglio deve incrociare il modello tra ${formatMillimeters(min)} e ${formatMillimeters(max)}.`,
+    };
+  }
+
+  let mode = 'middle';
+  let keepSide = null;
+  let planePosition = null;
+  let cutStart = rawStart;
+  let cutEnd = rawEnd;
+  if (rawStart <= min + tolerance) {
+    mode = 'side-positive';
+    keepSide = 'positive';
+    planePosition = THREE.MathUtils.clamp(rawEnd, min, max);
+    cutStart = min;
+    cutEnd = planePosition;
+  } else if (rawEnd >= max - tolerance) {
+    mode = 'side-negative';
+    keepSide = 'negative';
+    planePosition = THREE.MathUtils.clamp(rawStart, min, max);
+    cutStart = planePosition;
+    cutEnd = max;
+  }
+
+  const actualRemovedLength = cutEnd - cutStart;
+  if (!(actualRemovedLength > tolerance)) {
+    return {
+      error: currentLanguage === 'en'
+        ? 'Cut volume is too close to the model edge.'
+        : 'Il volume di taglio e troppo vicino al bordo del modello.',
+    };
+  }
+  const finalLength = currentLength - actualRemovedLength;
   return {
+    actualRemovedLength,
     axis,
     axisKey: ['x', 'y', 'z'][axis],
     box,
+    cutCenter,
+    cutEnd,
+    cutStart,
     currentLength,
+    finalLength,
     keepSide,
-    middleEnd,
-    middleStart,
+    mode,
+    rawEnd,
+    rawStart,
     planePosition,
-    requestedLength,
-    removedLength,
+    removeLength,
   };
 }
 
@@ -840,21 +885,13 @@ function drawShortenPreview() {
   const removedBox = fullBox.clone();
   const planeThickness = Math.max(state.currentLength * 0.004, 0.15);
 
-  if (state.keepSide === 'middle') {
-    setAxisComponent(removedBox.min, state.axis, state.middleStart);
-    setAxisComponent(removedBox.max, state.axis, state.middleEnd);
-  } else {
-    if (state.keepSide === 'negative') {
-      setAxisComponent(removedBox.min, state.axis, state.planePosition);
-    } else {
-      setAxisComponent(removedBox.max, state.axis, state.planePosition);
-    }
-  }
+  setAxisComponent(removedBox.min, state.axis, state.cutStart);
+  setAxisComponent(removedBox.max, state.axis, state.cutEnd);
   const removedMesh = makePreviewBox(removedBox, 0xe46f2b);
   if (removedMesh) group.add(removedMesh);
 
-  const planePositions = state.keepSide === 'middle'
-    ? [state.middleStart, state.middleEnd]
+  const planePositions = state.mode === 'middle'
+    ? [state.cutStart, state.cutEnd]
     : [state.planePosition];
   for (const position of planePositions) {
     const planeBox = fullBox.clone();
@@ -867,19 +904,16 @@ function drawShortenPreview() {
   shortenPreview = group;
   addTransientOverlay(shortenPreview, 'shorten-preview');
   ui.applyShorten.disabled = false;
-  ui.shortenCap.disabled = state.keepSide === 'middle';
-  ui.shortenReadout.textContent = state.keepSide === 'middle'
+  ui.shortenReadout.textContent = state.mode === 'middle'
     ? currentLanguage === 'en'
-      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Removing middle ${formatMillimeters(state.middleStart)} - ${formatMillimeters(state.middleEnd)}.`
-      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Rimuove sezione ${formatMillimeters(state.middleStart)} - ${formatMillimeters(state.middleEnd)}.`
+      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.finalLength)}. Removing section ${formatMillimeters(state.cutStart)} - ${formatMillimeters(state.cutEnd)} and closing the gap.`
+      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.finalLength)}. Rimuove sezione ${formatMillimeters(state.cutStart)} - ${formatMillimeters(state.cutEnd)} e richiude il vuoto.`
     : currentLanguage === 'en'
-      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Cut plane ${formatMillimeters(state.planePosition)}; removing ${formatMillimeters(state.removedLength)}.`
-      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.requestedLength)}. Piano a ${formatMillimeters(state.planePosition)}; rimuove ${formatMillimeters(state.removedLength)}.`;
-  ui.shortenInfo.textContent = state.keepSide === 'middle'
+      ? `${shortenAxisLabel(state.axis)} now ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.finalLength)}. Side cut at ${formatMillimeters(state.planePosition)}.`
+      : `${shortenAxisLabel(state.axis)} ora ${formatMillimeters(state.currentLength)} -> ${formatMillimeters(state.finalLength)}. Taglio laterale a ${formatMillimeters(state.planePosition)}.`;
+  ui.shortenInfo.textContent = state.mode === 'middle'
     ? t('Accorcia: rimuove la sezione mediana, riavvicina le estremita e salda i vertici coincidenti.')
-    : currentLanguage === 'en'
-      ? `Keeping the ${state.keepSide} side and cutting without scaling.`
-      : `Mantiene il lato ${state.keepSide === 'negative' ? 'negativo' : 'positivo'} e taglia senza scalare.`;
+    : t('Accorcia: il taglio tocca un bordo, quindi mantiene il lato opposto e richiude la sezione.');
 }
 
 async function applyShorten() {
@@ -897,15 +931,15 @@ async function applyShorten() {
   await waitForNextFrame();
   snapshot();
   try {
-    const result = state.keepSide === 'middle'
+    const result = state.mode === 'middle'
       ? removeMiddleSectionGeometry(model.geometry, {
         axis: state.axisKey,
-        end: state.middleEnd,
-        start: state.middleStart,
+        end: state.cutEnd,
+        start: state.cutStart,
       })
       : cutPlaneGeometry(model.geometry, {
         axis: state.axisKey,
-        cap: ui.shortenCap.checked,
+        cap: true,
         keepSide: state.keepSide,
         position: state.planePosition,
       });
@@ -918,11 +952,9 @@ async function applyShorten() {
     if (repaired?.geometry) result.geometry.dispose();
     setModelGeometry(finalGeometry, false, { preserveSketch: true });
     updateHistoryButtons();
-    setStatus(state.keepSide === 'middle'
+    setStatus(state.mode === 'middle'
       ? t('Sezione mediana rimossa. Le due parti sono state riavvicinate e saldate dove possibile.')
-      : currentLanguage === 'en'
-        ? `Cut applied: ${result.report.removedTriangles} triangles removed, ${result.report.capTriangles} cap triangles.`
-        : `Taglio applicato: ${result.report.removedTriangles} triangoli rimossi, ${result.report.capTriangles} triangoli di chiusura.`);
+      : t('Taglio laterale applicato. Il lato opposto e stato mantenuto.'));
   } catch (error) {
     console.error(`Errore Accorcia: ${error?.stack ?? error}`);
     const previous = undoStack.pop();
