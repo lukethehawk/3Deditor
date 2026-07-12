@@ -137,6 +137,10 @@ Navigation:
   connected body.
 - `Objects`: opens a collapsible drawer with connected bodies. Rows support
   rename, select, export and delete without occupying the viewport permanently.
+- `History`: opens a compact drawer below Objects with the last mesh snapshots.
+  It is not a parametric CAD timeline: `Ctrl+Z`/`Ctrl+Y` remain the main undo
+  mechanism, and clicking a previous entry jumps back through the same undo/redo
+  stacks.
 </details>
 
 <details>
@@ -388,6 +392,10 @@ Navigazione:
   numerico resta disponibile.
 - `Transform`: passa automaticamente a Object mode e modifica solo il corpo
   connesso selezionato.
+- `History`: apre un drawer compatto sotto Oggetti con gli ultimi snapshot mesh.
+  Non e' una timeline CAD parametrica: `Ctrl+Z`/`Ctrl+Y` restano il meccanismo
+  principale, e cliccare una voce precedente torna indietro usando gli stessi
+  stack undo/redo.
 - `Objects`: apre un drawer richiudibile con i corpi connessi. Le righe
   permettono rinomina, selezione, export ed eliminazione senza occupare il
   viewport in modo permanente.

@@ -605,7 +605,8 @@ button {
   color: #2477bd;
 }
 
-.objects-drawer {
+.objects-drawer,
+.history-drawer {
   width: 268px;
   max-width: calc(100% - 28px);
   max-height: calc(100% - 28px);
@@ -626,23 +627,27 @@ button {
   transition: transform 160ms ease;
 }
 
-.objects-drawer.open {
+.objects-drawer.open,
+.history-drawer.open {
   transform: translateX(0);
 }
 
-.objects-drawer-heading {
+.objects-drawer-heading,
+.history-drawer-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.objects-drawer-heading strong {
+.objects-drawer-heading strong,
+.history-drawer-heading strong {
   display: block;
   font-size: 20px;
 }
 
-.objects-drawer-summary {
+.objects-drawer-summary,
+.history-drawer-summary {
   display: flex;
   gap: 6px;
   color: var(--ink-soft);
@@ -650,13 +655,46 @@ button {
   font-weight: 700;
 }
 
-.objects-list {
+.objects-list,
+.history-list {
   min-height: 0;
   display: grid;
   align-content: start;
   gap: 7px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.history-row {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid #d7dcde;
+  border-radius: 6px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-row.current {
+  border-color: var(--blue);
+  box-shadow: inset 3px 0 var(--blue);
+}
+
+.history-row:hover {
+  background: #f4f8fa;
+}
+
+.history-row strong {
+  font-size: 12px;
+}
+
+.history-row small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .object-row {

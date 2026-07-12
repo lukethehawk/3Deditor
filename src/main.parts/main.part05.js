@@ -1,4 +1,7 @@
-  snapshot();
+  snapshot({
+    title: t('Creato foro'),
+    detail: `${t('diametro')} ${formatMillimeters(diameter)}, ${t('profondita')} ${formatMillimeters(depth)}`,
+  });
   try {
     const sourceGeometry = model.geometry.clone();
     sourceGeometry.clearGroups();
@@ -26,7 +29,7 @@
     setStatus(`Foro creato: diametro ${diameter.toFixed(2)} mm, profondita ${depth.toFixed(2)} mm.`);
   } catch (error) {
     console.error(`Errore foratura: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false);
     updateHistoryButtons();
     const detail = error instanceof Error ? ` (${error.message})` : '';
@@ -46,10 +49,7 @@ async function openStl(file) {
     currentFileName = file.name;
     sourceStlName = file.name;
     currentModelInfo = modelComplexityInfo(file, geometry);
-    for (const item of undoStack) item.dispose();
-    for (const item of redoStack) item.dispose();
-    undoStack.length = 0;
-    redoStack.length = 0;
+    clearUndoRedoHistory();
     setModelGeometry(geometry, false);
     ui.fileName.textContent = file.name;
     updateHistoryButtons();
@@ -243,10 +243,7 @@ async function openProject(file) {
     const project = JSON.parse(await file.text());
     if (!project || project.version !== 1) throw new Error('Unsupported project version.');
     const geometry = projectGeometryFromPositions(project.geometry?.positions);
-    for (const item of undoStack) item.dispose();
-    for (const item of redoStack) item.dispose();
-    undoStack.length = 0;
-    redoStack.length = 0;
+    clearUndoRedoHistory();
     objectNames = Array.isArray(project.objects)
       ? project.objects.map((item, index) => item.name || objectDefaultName(index))
       : [];
@@ -315,6 +312,17 @@ ui.objectsToggle.addEventListener('click', () => {
 ui.objectsClose.addEventListener('click', () => {
   setObjectsDrawerOpen(false);
 });
+ui.historyToggle.addEventListener('click', () => {
+  setHistoryDrawerOpen(!historyDrawerOpen);
+});
+ui.historyClose.addEventListener('click', () => {
+  setHistoryDrawerOpen(false);
+});
+ui.historyList.addEventListener('click', (event) => {
+  const row = event.target.closest('.history-row');
+  if (!row) return;
+  restoreToHistoryIndex(Number(row.dataset.index));
+});
 ui.objectsList.addEventListener('input', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement) || target.dataset.action !== 'rename') return;
@@ -349,6 +357,11 @@ document.addEventListener('click', (event) => {
     && !ui.objectsDrawer.contains(event.target)
     && !ui.objectsToggle.contains(event.target)) {
     setObjectsDrawerOpen(false);
+  }
+  if (historyDrawerOpen
+    && !ui.historyDrawer.contains(event.target)
+    && !ui.historyToggle.contains(event.target)) {
+    setHistoryDrawerOpen(false);
   }
   if (ui.optionsMenu.hidden) return;
   if (ui.optionsMenu.contains(event.target) || ui.optionsMenuButton.contains(event.target)) return;

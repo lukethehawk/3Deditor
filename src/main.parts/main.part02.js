@@ -263,9 +263,107 @@ function refreshObjectItems() {
 
 function setObjectsDrawerOpen(open) {
   objectsDrawerOpen = Boolean(open);
+  if (objectsDrawerOpen) setHistoryDrawerOpen(false);
   ui.objectsDrawer.classList.toggle('open', objectsDrawerOpen);
   ui.objectsDrawer.setAttribute('aria-hidden', String(!objectsDrawerOpen));
   ui.objectsToggle.classList.toggle('active', objectsDrawerOpen);
+}
+
+function defaultHistoryAction() {
+  return {
+    title: t('Modifica'),
+    detail: t('Snapshot mesh'),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizeHistoryAction(action) {
+  const fallback = defaultHistoryAction();
+  return {
+    title: String(action?.title || fallback.title),
+    detail: String(action?.detail || fallback.detail),
+    createdAt: action?.createdAt || fallback.createdAt,
+  };
+}
+
+function setHistoryDrawerOpen(open) {
+  historyDrawerOpen = Boolean(open);
+  if (historyDrawerOpen) setObjectsDrawerOpen(false);
+  ui.historyDrawer.classList.toggle('open', historyDrawerOpen);
+  ui.historyDrawer.setAttribute('aria-hidden', String(!historyDrawerOpen));
+  ui.historyToggle.classList.toggle('active', historyDrawerOpen);
+  ui.historyToggle.setAttribute('aria-expanded', String(historyDrawerOpen));
+}
+
+function renderHistoryDrawer() {
+  if (!ui.historyList || !ui.historyCount) return;
+  const heading = ui.historyDrawer.querySelector('.history-drawer-heading strong');
+  const summaryLabel = ui.historyDrawer.querySelector('.history-drawer-summary span:last-child');
+  if (heading) heading.textContent = currentLanguage === 'en' ? 'History' : 'Storia';
+  if (summaryLabel) summaryLabel.textContent = currentLanguage === 'en' ? 'actions' : 'azioni';
+  ui.historyCount.textContent = String(undoHistory.length);
+  ui.historyList.replaceChildren();
+
+  if (!undoHistory.length) {
+    const empty = document.createElement('span');
+    empty.textContent = t('Nessuna modifica');
+    ui.historyList.append(empty);
+    return;
+  }
+
+  undoHistory.forEach((entry, index) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = `history-row${index === undoHistory.length - 1 ? ' current' : ''}`;
+    row.dataset.index = String(index);
+    row.setAttribute('aria-label', entry.title);
+
+    const title = document.createElement('strong');
+    title.textContent = index === undoHistory.length - 1
+      ? `${entry.title} - ${t('Stato corrente')}`
+      : entry.title;
+    row.append(title);
+
+    const detail = document.createElement('small');
+    detail.textContent = entry.detail;
+    row.append(detail);
+
+    ui.historyList.append(row);
+  });
+}
+
+function clearHistoryMetadata() {
+  undoHistory.length = 0;
+  redoHistory.length = 0;
+  renderHistoryDrawer();
+}
+
+function clearUndoRedoHistory() {
+  for (const geometry of undoStack) geometry.dispose();
+  for (const geometry of redoStack) geometry.dispose();
+  undoStack.length = 0;
+  redoStack.length = 0;
+  clearHistoryMetadata();
+  updateHistoryButtons();
+}
+
+function popUndoSnapshotForRollback() {
+  const previous = undoStack.pop();
+  undoHistory.pop();
+  renderHistoryDrawer();
+  return previous;
+}
+
+function restoreToHistoryIndex(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= undoHistory.length) return;
+  const steps = undoHistory.length - 1 - index;
+  for (let step = 0; step < steps; step += 1) {
+    restoreFrom(undoStack, redoStack, { silent: true });
+  }
+  if (steps > 0) {
+    updateHistoryButtons();
+    setStatus('Modifica ripristinata.');
+  }
 }
 
 function renderObjectsDrawer() {
@@ -380,27 +478,40 @@ function setModelGeometry(geometry, recordHistory = true, options = {}) {
   requestRender();
 }
 
-function snapshot() {
+function snapshot(action = defaultHistoryAction()) {
   undoStack.push(model.geometry.clone());
-  if (undoStack.length > 30) undoStack.shift().dispose();
+  undoHistory.push(normalizeHistoryAction(action));
+  if (undoStack.length > 30) {
+    undoStack.shift().dispose();
+    undoHistory.shift();
+  }
   for (const geometry of redoStack) geometry.dispose();
   redoStack.length = 0;
+  redoHistory.length = 0;
   updateHistoryButtons();
 }
 
-function restoreFrom(source, destination) {
+function restoreFrom(source, destination, options = {}) {
   if (!source.length) return;
   if (model) destination.push(model.geometry.clone());
   const geometry = source.pop();
+  if (source === undoStack && destination === redoStack) {
+    const action = undoHistory.pop();
+    if (action) redoHistory.push(action);
+  } else if (source === redoStack && destination === undoStack) {
+    const action = redoHistory.pop();
+    if (action) undoHistory.push(action);
+  }
   setModelGeometry(geometry, false, { preserveSketch: true });
   ui.fileName.textContent = currentFileName;
   updateHistoryButtons();
-  setStatus('Modifica ripristinata.');
+  if (!options.silent) setStatus('Modifica ripristinata.');
 }
 
 function updateHistoryButtons() {
   ui.undo.disabled = undoStack.length === 0;
   ui.redo.disabled = redoStack.length === 0;
+  renderHistoryDrawer();
 }
 
 function setSelectionMode(mode, options = {}) {
@@ -451,6 +562,7 @@ function clearCurrentModel(message = 'Modello rimosso. Apri un STL o crea una nu
   updateModelActions();
   refreshObjectItems();
   setObjectsDrawerOpen(false);
+  setHistoryDrawerOpen(false);
   updateHistoryButtons();
   setTool('select');
   setStatus(message);
@@ -461,10 +573,7 @@ function removeCurrentModel() {
     setStatus('Non c e nessun modello da rimuovere.');
     return;
   }
-  for (const geometry of undoStack) geometry.dispose();
-  for (const geometry of redoStack) geometry.dispose();
-  undoStack.length = 0;
-  redoStack.length = 0;
+  clearUndoRedoHistory();
   clearCurrentModel('Figura rimossa. Apri un STL o crea una nuova geometria.');
 }
 
@@ -483,7 +592,10 @@ function deleteSelectedRegion() {
       setStatus(t("Seleziona l'oggetto da cancellare."));
       return false;
     }
-    snapshot();
+    snapshot({
+      title: t('Cancellato oggetto'),
+      detail: `${removedCount} ${t('facce')}`,
+    });
     const geometry = deleteTrianglesFromGeometry(model.geometry, selectedTriangles);
     if (!geometry) {
       clearCurrentModel(t("Oggetto cancellato. Usa Ctrl+Z per ripristinarlo."));
@@ -499,7 +611,10 @@ function deleteSelectedRegion() {
 
   const triangleCount = selected.region.triangles.length;
   const geometry = deleteTrianglesFromGeometry(model.geometry, selected.region.triangles);
-  snapshot();
+  snapshot({
+    title: t('Cancellata superficie'),
+    detail: `${triangleCount} ${t('facce')}`,
+  });
   if (!geometry) {
     clearCurrentModel('Tutte le superfici sono state cancellate. Usa Annulla per ripristinare.');
   } else {
@@ -668,7 +783,12 @@ async function repairCurrentMesh() {
       setStatus('La riparazione non ha prodotto una mesh valida. Usa Annulla o riapri il file originale.');
       return;
     }
-    snapshot();
+    snapshot({
+      title: t('Riparata mesh'),
+      detail: currentLanguage === 'en'
+        ? `${repaired.report.trianglesBefore} -> ${repaired.report.trianglesAfter} triangles, ${repaired.report.weldedVertices} welded, ${repaired.report.filledHoles ?? 0} holes filled`
+        : `${repaired.report.trianglesBefore} -> ${repaired.report.trianglesAfter} triangoli, ${repaired.report.weldedVertices} saldati, ${repaired.report.filledHoles ?? 0} buchi chiusi`,
+    });
     setModelGeometry(repaired.geometry, false, { preserveSketch: true });
     updateHistoryButtons();
     report = repaired.report;
@@ -798,7 +918,10 @@ function transformCurrentModel() {
   }
 
   clearTransformPreview();
-  snapshot();
+  snapshot({
+    title: t('Trasformato corpo'),
+    detail: `X ${formatMillimeters(transformed.values.translation.x, true)}, Y ${formatMillimeters(transformed.values.translation.y, true)}, Z ${formatMillimeters(transformed.values.translation.z, true)}, R ${formatDecimal(THREE.MathUtils.radToDeg(transformed.values.rotation.x))}/${formatDecimal(THREE.MathUtils.radToDeg(transformed.values.rotation.y))}/${formatDecimal(THREE.MathUtils.radToDeg(transformed.values.rotation.z))} deg, S ${formatDecimal(transformed.values.scale)}x`,
+  });
   setModelGeometry(transformed.geometry, false, { preserveSketch: true });
   updateHistoryButtons();
   resetTransformInputs();

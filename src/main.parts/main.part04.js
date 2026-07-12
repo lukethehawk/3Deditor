@@ -570,7 +570,11 @@ function createBooleanCylinderFromDirection(center, radius, depth, direction, se
 
 function applyMoveHole() {
   if (!holeMove?.hole || !holeMove.targetCenter || !model) return;
-  snapshot();
+  const historyOffset = holeMove.targetCenter.clone().sub(holeMove.hole.center);
+  snapshot({
+    title: t('Spostato foro'),
+    detail: `${t('delta')} X ${formatMillimeters(historyOffset.x, true)}, Y ${formatMillimeters(historyOffset.y, true)}, Z ${formatMillimeters(historyOffset.z, true)}`,
+  });
   setStatus('Spostamento del foro in corso...');
 
   try {
@@ -607,7 +611,7 @@ function applyMoveHole() {
     );
   } catch (error) {
     console.error(`Errore spostamento foro: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Non riesco a spostare il foro su questa mesh.');
@@ -870,7 +874,10 @@ function applyPushPull(distance) {
     applySupportedProfilePushPull(distance);
     return;
   }
-  snapshot();
+  snapshot({
+    title: t('Spingi/Tira'),
+    detail: `${formatMillimeters(distance, true)} - ${selected.region.triangles.length} ${t('facce')}`,
+  });
   const geometry = pushPullGeometry(model.geometry, selected.region, distance);
   setModelGeometry(geometry, false, { preserveSketch: true });
   updateHistoryButtons();
@@ -883,7 +890,10 @@ function applySupportedProfilePushPull(distance) {
   const sourceGeometry = deleteTrianglesFromGeometry(model.geometry, selected.region.triangles);
   if (!sourceGeometry) {
     const geometry = pushPullGeometry(model.geometry, selected.region, distance);
-    snapshot();
+    snapshot({
+      title: t('Spingi/Tira'),
+      detail: `${formatMillimeters(distance, true)} - ${selected.region.triangles.length} ${t('facce')}`,
+    });
     setModelGeometry(geometry, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus(`Spingi/Tira applicato: ${distance.toFixed(2)} mm.`);
@@ -901,7 +911,10 @@ function applySupportedProfilePushPull(distance) {
     selected.normal.z * -sign * overlap,
   );
 
-  snapshot();
+  snapshot({
+    title: t('Spingi/Tira'),
+    detail: `${formatMillimeters(distance, true)} - ${selected.region.triangles.length} ${t('facce')}`,
+  });
   try {
     const operation = distance > 0 ? 'add' : 'subtract';
     const resultGeometry = booleanGeometry(sourceGeometry, toolGeometry, operation);
@@ -912,7 +925,7 @@ function applySupportedProfilePushPull(distance) {
       : `Profilo spinto nel solido: ${distance.toFixed(2)} mm.`);
   } catch (error) {
     console.error(`Errore Spingi/Tira su profilo: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Non riesco ad applicare Spingi/Tira su questo profilo: prova una distanza diversa o ripara la mesh.');

@@ -151,6 +151,7 @@ let objectItems = [];
 let objectNames = [];
 let objectItemsDeferred = false;
 let objectsDrawerOpen = false;
+let historyDrawerOpen = false;
 let pointerDown = null;
 let measurementStart = null;
 let measurementEnd = null;
@@ -196,6 +197,8 @@ let pushPullHandleFrameRequest = 0;
 let pushPullHandlePendingDistance = 0;
 const undoStack = [];
 const redoStack = [];
+const undoHistory = [];
+const redoHistory = [];
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const evaluator = new Evaluator();
@@ -477,6 +480,11 @@ const ui = {
   objectsClose: document.querySelector('#objects-close'),
   objectsList: document.querySelector('#objects-list'),
   objectsCount: document.querySelector('#objects-count'),
+  historyToggle: document.querySelector('#history-toggle'),
+  historyDrawer: document.querySelector('#history-drawer'),
+  historyClose: document.querySelector('#history-close'),
+  historyList: document.querySelector('#history-list'),
+  historyCount: document.querySelector('#history-count'),
 };
 
 function setStatus(message) {
@@ -596,6 +604,7 @@ const languageText = {
     pan: 'Panoramica',
     zoomfit: 'Inquadra',
     objects: 'Oggetti',
+    history: 'Storia',
   },
   en: {
     title: 'Forma3D - STL Editor',
@@ -633,6 +642,7 @@ const languageText = {
     pan: 'Pan',
     zoomfit: 'Zoom fit',
     objects: 'Objects',
+    history: 'History',
   },
 };
 
@@ -664,12 +674,19 @@ const staticTranslations = {
     Panoramica: 'Pan',
     'Inquadra tutto': 'Zoom to fit',
     Oggetti: 'Objects',
+    Storia: 'History',
     'Pannello oggetti': 'Objects panel',
+    'Pannello storia': 'History panel',
     MODEL: 'MODEL',
+    HISTORY: 'HISTORY',
     Objects: 'Objects',
+    History: 'History',
     'connected bodies': 'connected bodies',
+    actions: 'actions',
     'No bodies': 'No bodies',
+    'No changes': 'No changes',
     'Nessun corpo': 'No bodies',
+    'Nessuna modifica': 'No changes',
     'Nome oggetto': 'Object name',
     Select: 'Select',
     Export: 'Export',
@@ -679,6 +696,39 @@ const staticTranslations = {
     Chiudi: 'Close',
     'Annulla (Ctrl+Z)': 'Undo (Ctrl+Z)',
     'Ripristina (Ctrl+Y)': 'Redo (Ctrl+Y)',
+    'Modifica': 'Change',
+    'Snapshot mesh': 'Mesh snapshot',
+    'Stato corrente': 'Current state',
+    'Sottrazione': 'Subtraction',
+    'Creata Box': 'Box created',
+    'Creato Cilindro': 'Cylinder created',
+    'Creato Cono': 'Cone created',
+    'Creata Piramide': 'Pyramid created',
+    'Creato Ingranaggio': 'Gear created',
+    'Creato Piano': 'Plane created',
+    'Creato foro': 'Hole created',
+    'Spostato foro': 'Hole moved',
+    'Spingi/Tira': 'Push/Pull',
+    'Accorciato modello': 'Model shortened',
+    'Svuotato modello': 'Model hollowed',
+    'Riparata mesh': 'Mesh repaired',
+    'Trasformato corpo': 'Body transformed',
+    'Cancellato oggetto': 'Object deleted',
+    'Cancellata superficie': 'Surface deleted',
+    'Aggiunto testo': 'Text added',
+    'Inciso testo': 'Text engraved',
+    diametro: 'diameter',
+    altezza: 'height',
+    asse: 'axis',
+    base: 'base',
+    denti: 'teeth',
+    modulo: 'module',
+    spessore: 'thickness',
+    cilindro: 'cylinder',
+    profondita: 'depth',
+    delta: 'delta',
+    rimosso: 'removed',
+    centro: 'center',
     'Aumenta valore': 'Increase value',
     'Diminuisci valore': 'Decrease value',
     'Apri un file STL': 'Open an STL file',
@@ -1069,6 +1119,8 @@ function translateStaticText(language) {
     '.options-tooltip span',
     '.objects-drawer-heading strong',
     '.objects-drawer-summary span',
+    '.history-drawer-heading strong',
+    '.history-drawer-summary span',
     '#status',
   ].join(','));
   elements.forEach((element) => {
@@ -1175,9 +1227,11 @@ function applyLanguage(language) {
     'zoomfit',
   ].forEach((tool) => setToolText(tool, dictionary[tool]));
   setText('#objects-toggle span', dictionary.objects);
+  setText('#history-toggle span', dictionary.history);
   if (!model) ui.fileName.textContent = t('Nessun modello');
   renderFileInfo();
   renderObjectsDrawer();
+  renderHistoryDrawer();
   updateInspector();
 }
 

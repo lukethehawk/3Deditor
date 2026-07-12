@@ -122,7 +122,7 @@ function booleanGeometry(sourceGeometry, toolGeometry, operation) {
   return geometry;
 }
 
-function applyPrimitiveGeometry(geometry, operation, successMessage) {
+function applyPrimitiveGeometry(geometry, operation, successMessage, historyAction = null) {
   if (operation === 'subtract' && !model) {
     setStatus('Per sottrarre serve prima un solido di partenza.');
     geometry.dispose();
@@ -137,7 +137,10 @@ function applyPrimitiveGeometry(geometry, operation, successMessage) {
   }
 
   setStatus(operation === 'subtract' ? 'Sottrazione in corso...' : 'Unione in corso...');
-  snapshot();
+  snapshot(historyAction ?? {
+    title: operation === 'subtract' ? t('Sottrazione') : t('Modifica'),
+    detail: successMessage,
+  });
   try {
     const resultGeometry = booleanGeometry(model.geometry, geometry, operation);
     setModelGeometry(resultGeometry, false, { preserveSketch: true });
@@ -145,7 +148,7 @@ function applyPrimitiveGeometry(geometry, operation, successMessage) {
     setStatus(successMessage);
   } catch (error) {
     console.error(`Errore booleana: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Operazione booleana non riuscita: prova con un solido chiuso o una posizione leggermente diversa.');
@@ -154,7 +157,7 @@ function applyPrimitiveGeometry(geometry, operation, successMessage) {
   }
 }
 
-function appendGeometryToModel(geometry, successMessage, pendingMessage = 'Applicazione geometria in corso...') {
+function appendGeometryToModel(geometry, successMessage, pendingMessage = 'Applicazione geometria in corso...', historyAction = null) {
   if (!model) {
     setModelGeometry(geometry, false);
     fitView();
@@ -163,7 +166,10 @@ function appendGeometryToModel(geometry, successMessage, pendingMessage = 'Appli
   }
 
   setStatus(pendingMessage);
-  snapshot();
+  snapshot(historyAction ?? {
+    title: t('Modifica'),
+    detail: successMessage,
+  });
   try {
     const resultGeometry = combineGeometries([model.geometry, geometry]);
     if (!resultGeometry) throw new Error('Nessuna geometria da combinare.');
@@ -173,7 +179,7 @@ function appendGeometryToModel(geometry, successMessage, pendingMessage = 'Appli
     return true;
   } catch (error) {
     console.error(`Errore unione testo: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Non riesco ad applicare il testo: prova a ridurre profondita o lunghezza.');
@@ -240,6 +246,10 @@ function applyBox() {
     geometry,
     ui.boxOperation.value,
     ui.boxOperation.value === 'subtract' ? 'Parallelepipedo sottratto dal solido.' : 'Parallelepipedo unito al solido.',
+    {
+      title: ui.boxOperation.value === 'subtract' ? t('Sottrazione') : t('Creata Box'),
+      detail: `${formatMillimeters(parseDecimal(ui.boxWidth.value, 0))} x ${formatMillimeters(parseDecimal(ui.boxDepth.value, 0))} x ${formatMillimeters(parseDecimal(ui.boxHeight.value, 0))}`,
+    },
   );
 }
 
@@ -313,6 +323,10 @@ function applyCylinder() {
     geometry,
     ui.cylinderOperation.value,
     ui.cylinderOperation.value === 'subtract' ? 'Cilindro sottratto dal solido.' : 'Cilindro unito al solido.',
+    {
+      title: ui.cylinderOperation.value === 'subtract' ? t('Sottrazione') : t('Creato Cilindro'),
+      detail: `${t('diametro')} ${formatMillimeters(parseDecimal(ui.cylinderDiameter.value, 0))}, ${t('altezza')} ${formatMillimeters(parseDecimal(ui.cylinderHeight.value, 0))}, ${t('asse')} ${ui.cylinderAxis.value.toUpperCase()}`,
+    },
   );
 }
 
@@ -378,6 +392,10 @@ function applyCone() {
     geometry,
     ui.coneOperation.value,
     ui.coneOperation.value === 'subtract' ? 'Cono sottratto dal solido.' : 'Cono unito al solido.',
+    {
+      title: ui.coneOperation.value === 'subtract' ? t('Sottrazione') : t('Creato Cono'),
+      detail: `${t('diametro')} ${formatMillimeters(parseDecimal(ui.coneDiameter.value, 0))}, ${t('altezza')} ${formatMillimeters(parseDecimal(ui.coneHeight.value, 0))}, ${t('asse')} ${ui.coneAxis.value.toUpperCase()}`,
+    },
   );
 }
 
@@ -446,6 +464,10 @@ function applyPyramid() {
     geometry,
     ui.pyramidOperation.value,
     ui.pyramidOperation.value === 'subtract' ? 'Piramide sottratta dal solido.' : 'Piramide unita al solido.',
+    {
+      title: ui.pyramidOperation.value === 'subtract' ? t('Sottrazione') : t('Creata Piramide'),
+      detail: `${t('base')} ${formatMillimeters(parseDecimal(ui.pyramidWidth.value, 0))} x ${formatMillimeters(parseDecimal(ui.pyramidDepth.value, 0))}, ${t('altezza')} ${formatMillimeters(parseDecimal(ui.pyramidHeight.value, 0))}, ${t('asse')} ${ui.pyramidAxis.value.toUpperCase()}`,
+    },
   );
 }
 
@@ -572,6 +594,10 @@ function applyGear() {
     geometry,
     'Ingranaggio aggiunto come corpo separato.',
     'Creazione ingranaggio in corso...',
+    {
+      title: t('Creato Ingranaggio'),
+      detail: `${t('denti')} ${Math.round(parseDecimal(ui.gearTeeth.value, 24))}, ${t('modulo')} ${formatMillimeters(parseDecimal(ui.gearModule.value, 2))}, ${t('spessore')} ${formatMillimeters(parseDecimal(ui.gearWidth.value, 8))}`,
+    },
   );
 }
 
@@ -636,7 +662,15 @@ function applyPlane() {
   }
   const firstPlaneTriangle = model ? triangleCount(model.geometry) : 0;
   const selectedPoint = planePlacement?.basePoint?.clone?.() ?? new THREE.Vector3();
-  const applied = appendGeometryToModel(geometry, 'Piano applicato al modello.', 'Applicazione piano in corso...');
+  const applied = appendGeometryToModel(
+    geometry,
+    'Piano applicato al modello.',
+    'Applicazione piano in corso...',
+    {
+      title: t('Creato Piano'),
+      detail: `${ui.planeShape.value}, ${formatMillimeters(parseDecimal(ui.planeWidth.value, 0))} x ${formatMillimeters(parseDecimal(ui.planeDepth.value, 0))}, ${t('asse')} ${ui.planeAxis.value.toUpperCase()}`,
+    },
+  );
   if (applied) {
     setSelectionMode('face', { clear: false, refresh: false });
     setTool('select');
@@ -728,7 +762,12 @@ function applyCut() {
     setStatus('Imposta prima forma, punto e dimensioni della sottrazione.');
     return;
   }
-  applyPrimitiveGeometry(geometry, 'subtract', 'Figura sottratta dal file STL.');
+  applyPrimitiveGeometry(geometry, 'subtract', 'Figura sottratta dal file STL.', {
+    title: t('Sottrazione'),
+    detail: ui.cutShape.value === 'box'
+      ? `Box ${formatMillimeters(parseDecimal(ui.cutWidth.value, 0))} x ${formatMillimeters(parseDecimal(ui.cutDepth.value, 0))} x ${formatMillimeters(parseDecimal(ui.cutHeight.value, 0))}`
+      : `${t('cilindro')} ${t('diametro')} ${formatMillimeters(parseDecimal(ui.cutDiameter.value, 0))}, ${t('altezza')} ${formatMillimeters(parseDecimal(ui.cutCylinderHeight.value, 0))}`,
+  });
 }
 
 function shortenAxisIndex() {
@@ -929,7 +968,10 @@ async function applyShorten() {
 
   showBusy('Taglio in corso...', 'Sto tagliando la mesh e richiudendo la superficie.');
   await waitForNextFrame();
-  snapshot();
+  snapshot({
+    title: t('Accorciato modello'),
+    detail: `${t('asse')} ${shortenAxisLabel(state.axis)}, ${t('rimosso')} ${formatMillimeters(state.removeLength)}, ${t('centro')} ${formatMillimeters(state.cutCenter)}`,
+  });
   try {
     const result = state.mode === 'middle'
       ? removeMiddleSectionGeometry(model.geometry, {
@@ -957,7 +999,7 @@ async function applyShorten() {
       : t('Taglio laterale applicato. Il lato opposto e stato mantenuto.'));
   } catch (error) {
     console.error(`Errore Accorcia: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Taglio non riuscito: prova un asse diverso o una lunghezza meno vicina al bordo.');
@@ -1015,7 +1057,10 @@ async function applyHollow() {
 
   showBusy('Svuotamento in corso...', 'Sto creando la superficie interna e le pareti dei bordi aperti.');
   await waitForNextFrame();
-  snapshot();
+  snapshot({
+    title: t('Svuotato modello'),
+    detail: `${t('spessore')} ${formatMillimeters(thickness)}, ${info.triangles} ${currentLanguage === 'en' ? 'triangles' : 'triangoli'}`,
+  });
   try {
     const result = hollowGeometry(model.geometry, thickness);
     if (!result?.geometry) throw new Error(t('Lo svuotamento non ha prodotto geometria.'));
@@ -1031,7 +1076,7 @@ async function applyHollow() {
       : `Svuotamento completato: parete ${formatMillimeters(thickness)}, ${result.report.outputTriangles} triangoli${boundaryText}.`);
   } catch (error) {
     console.error(`Errore Svuota: ${error?.stack ?? error}`);
-    const previous = undoStack.pop();
+    const previous = popUndoSnapshotForRollback();
     if (previous) setModelGeometry(previous, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus('Svuotamento non riuscito: prova uno spessore minore o ripara la mesh prima di riprovare.');
@@ -1185,13 +1230,19 @@ async function applyText() {
       showBusy('Incisione in corso...', 'Sto calcolando la sottrazione del testo. Interfaccia bloccata finche il solido non e pronto.');
       await waitForNextFrame();
       await waitForNextFrame();
-      applyPrimitiveGeometry(geometry, 'subtract', 'Testo 3D inciso nel solido.');
+      applyPrimitiveGeometry(geometry, 'subtract', 'Testo 3D inciso nel solido.', {
+        title: t('Inciso testo'),
+        detail: `"${ui.textContent.value}" - ${formatMillimeters(parseDecimal(ui.textSize.value, 12))}, ${t('profondita')} ${formatMillimeters(parseDecimal(ui.textDepth.value, 3))}`,
+      });
       return;
     }
 
     setStatus('Applicazione testo in rilievo in corso...');
     await waitForNextFrame();
-    appendGeometryToModel(geometry, 'Testo 3D applicato al solido.', 'Applicazione testo in corso...');
+    appendGeometryToModel(geometry, 'Testo 3D applicato al solido.', 'Applicazione testo in corso...', {
+      title: t('Aggiunto testo'),
+      detail: `"${ui.textContent.value}" - ${formatMillimeters(parseDecimal(ui.textSize.value, 12))}, ${t('profondita')} ${formatMillimeters(parseDecimal(ui.textDepth.value, 3))}`,
+    });
   } finally {
     hideBusy();
     textApplyInProgress = false;

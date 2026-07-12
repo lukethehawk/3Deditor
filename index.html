@@ -209,6 +209,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><path d="M7 5v4M13 10v4M18 15v4"/></svg>
           <span>Oggetti</span>
         </button>
+        <button id="history-toggle" class="tool" type="button" title="Storia" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h10M5 12h14M5 19h8"/><path d="M17 4l3 3-3 3"/></svg>
+          <span>Storia</span>
+        </button>
       </aside>
 
       <section id="viewport" aria-label="Area di modellazione 3D">
@@ -227,6 +231,22 @@
           </div>
           <div id="objects-list" class="objects-list">
             <span>No bodies</span>
+          </div>
+        </aside>
+        <aside id="history-drawer" class="history-drawer" aria-label="Pannello storia" aria-hidden="true">
+          <div class="history-drawer-heading">
+            <div>
+              <span class="eyebrow">HISTORY</span>
+              <strong>History</strong>
+            </div>
+            <button id="history-close" class="icon-button" type="button" aria-label="Chiudi">x</button>
+          </div>
+          <div class="history-drawer-summary">
+            <span id="history-count">0</span>
+            <span>actions</span>
+          </div>
+          <div id="history-list" class="history-list">
+            <span>No changes</span>
           </div>
         </aside>
         <div id="hint" class="hint">

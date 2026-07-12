@@ -946,17 +946,26 @@ di superfici elimina tutti i triangoli.
 
 ## Annulla e ripristina
 
-La storia conserva cloni di `BufferGeometry`.
+La storia conserva cloni di `BufferGeometry` e metadati UI leggeri.
 
 - `snapshot()` salva la geometria corrente in `undoStack`, massimo 30 stati, e
   svuota `redoStack`.
+- `undoHistory` e `redoHistory` restano paralleli a `undoStack` e `redoStack`:
+  ogni voce contiene solo `title`, `detail` e `createdAt`, senza duplicare
+  geometrie.
 - `restoreFrom(source, destination)` sposta la geometria corrente nello stack di
-  destinazione, poi ripristina l'ultima geometria dello stack sorgente.
+  destinazione, poi ripristina l'ultima geometria dello stack sorgente e muove
+  anche la voce history corrispondente.
+- Il drawer `History`, sotto `Objects`, mostra le ultime azioni annullabili. La
+  voce corrente e' evidenziata; cliccare una voce precedente chiama ripetutamente
+  `restoreFrom(undoStack, redoStack)` fino allo snapshot richiesto, quindi Redo
+  continua a funzionare.
 
 Le operazioni booleane e Spingi/Tira chiamano `snapshot()` prima di modificare.
 
-Nota: la storia salva geometria, non metadati completi come nome file o tool
-attivo. Se in futuro serve un undo piu completo, introdurre un oggetto stato con
+Nota: la history e' un log operativo di snapshot mesh, non una timeline CAD
+parametrica. Non salva parametri modificabili retroattivamente, vincoli o feature
+tree. Se in futuro serve un undo piu completo, introdurre un oggetto stato con
 `geometry`, `fileName`, `selection`, ecc.
 
 ## Selezione facce e oggetti
