@@ -463,7 +463,7 @@ function renderObjectsDrawer() {
     actions.className = 'object-actions';
     const actionButtons = [
       ['select', currentLanguage === 'en' ? 'Select' : 'Sel.'],
-      ['pattern', currentLanguage === 'en' ? 'Pattern' : 'Serie'],
+      ['pattern', currentLanguage === 'en' ? 'Duplicate' : 'Duplica'],
       ['export', currentLanguage === 'en' ? 'Export' : 'Export'],
       ['delete', currentLanguage === 'en' ? 'Delete' : 'Elimina'],
     ];

@@ -672,14 +672,18 @@ button {
 }
 
 .objects-drawer.open,
-.history-drawer.open,
-.pattern-drawer.open {
+.history-drawer.open {
   transform: translateX(0);
 }
 
 .pattern-drawer {
   left: 296px;
   grid-template-rows: auto minmax(0, 1fr);
+  transform: translateX(calc(-100% - 308px));
+}
+
+.pattern-drawer.open {
+  transform: translateX(0);
 }
 
 .objects-drawer-heading,
@@ -1460,7 +1464,8 @@ button {
   .topbar-file,
   .button-icon,
   .view-cube,
-  .objects-drawer {
+  .objects-drawer,
+  .pattern-drawer {
     display: none;
   }
 
