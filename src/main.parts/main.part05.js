@@ -571,7 +571,7 @@ ui.applyShorten.addEventListener('click', (event) => {
 document.querySelector('#reset-shorten').addEventListener('click', () => {
   resetShortenDefaults();
   drawShortenPreview();
-  setStatus('Accorcia: regola asse, lunghezza rimossa e centro taglio.');
+  setStatus('Accorcia: seleziona un oggetto con doppio click, poi regola asse, lunghezza e centro taglio.');
 });
 ui.hollowThickness.addEventListener('input', updateHollowState);
 ui.hollowThickness.addEventListener('change', updateHollowState);

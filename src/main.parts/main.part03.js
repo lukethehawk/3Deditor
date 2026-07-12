@@ -788,17 +788,35 @@ function setAxisComponent(vector, axis, value) {
   else vector.z = value;
 }
 
-function modelBox() {
-  if (!model) return null;
-  model.geometry.computeBoundingBox();
-  return model.geometry.boundingBox.clone();
+function shortenTargetTriangles() {
+  return model && selected?.type === 'object' && selected.triangles?.length
+    ? selected.triangles
+    : null;
+}
+
+function shortenTargetGeometry() {
+  const triangles = shortenTargetTriangles();
+  return triangles ? extractTrianglesFromGeometry(model.geometry, triangles) : null;
+}
+
+function shortenTargetBox() {
+  const geometry = shortenTargetGeometry();
+  if (!geometry) return null;
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox.clone();
+  geometry.dispose();
+  return box;
 }
 
 function resetShortenDefaults() {
-  const box = modelBox();
+  const box = shortenTargetBox();
   if (!box) {
     ui.applyShorten.disabled = true;
-    if (ui.shortenReadout) ui.shortenReadout.textContent = t('Apri o crea un modello prima di usare Accorcia.');
+    if (ui.shortenReadout) {
+      ui.shortenReadout.textContent = model
+        ? t('Seleziona prima un oggetto con doppio click, poi usa Accorcia.')
+        : t('Apri o crea un modello prima di usare Accorcia.');
+    }
     return;
   }
   const size = box.getSize(new THREE.Vector3());
@@ -811,8 +829,14 @@ function resetShortenDefaults() {
 }
 
 function shortenStateFromInputs() {
-  const box = modelBox();
-  if (!box) return null;
+  const triangles = shortenTargetTriangles();
+  const box = shortenTargetBox();
+  if (!model) return null;
+  if (!triangles || !box) {
+    return {
+      error: t('Seleziona prima un oggetto con doppio click, poi usa Accorcia.'),
+    };
+  }
   const axis = shortenAxisIndex();
   const size = box.getSize(new THREE.Vector3());
   const currentLength = axisComponent(size, axis);
@@ -968,18 +992,26 @@ async function applyShorten() {
 
   showBusy('Taglio in corso...', 'Sto tagliando la mesh e richiudendo la superficie.');
   await waitForNextFrame();
+  const targetTriangles = [...selected.triangles];
+  const targetGeometry = extractTrianglesFromGeometry(model.geometry, targetTriangles);
+  const remainderGeometry = deleteTrianglesFromGeometry(model.geometry, targetTriangles);
+  if (!targetGeometry) {
+    hideBusy();
+    setStatus('Seleziona prima un oggetto con doppio click, poi usa Accorcia.');
+    return;
+  }
   snapshot({
     title: t('Accorciato modello'),
     detail: `${t('asse')} ${shortenAxisLabel(state.axis)}, ${t('rimosso')} ${formatMillimeters(state.removeLength)}, ${t('centro')} ${formatMillimeters(state.cutCenter)}`,
   });
   try {
     const result = state.mode === 'middle'
-      ? removeMiddleSectionGeometry(model.geometry, {
+      ? removeMiddleSectionGeometry(targetGeometry, {
         axis: state.axisKey,
         end: state.cutEnd,
         start: state.cutStart,
       })
-      : cutPlaneGeometry(model.geometry, {
+      : cutPlaneGeometry(targetGeometry, {
         axis: state.axisKey,
         cap: true,
         keepSide: state.keepSide,
@@ -990,8 +1022,13 @@ async function applyShorten() {
       planarize: false,
       preserveWinding: true,
     });
-    const finalGeometry = repaired?.geometry ?? result.geometry;
+    const shortenedGeometry = repaired?.geometry ?? result.geometry;
+    const finalGeometry = remainderGeometry
+      ? combineGeometries([remainderGeometry, shortenedGeometry])
+      : shortenedGeometry;
+    if (!finalGeometry) throw new Error('Il taglio non ha prodotto geometria.');
     if (repaired?.geometry) result.geometry.dispose();
+    if (finalGeometry !== shortenedGeometry) shortenedGeometry.dispose();
     setModelGeometry(finalGeometry, false, { preserveSketch: true });
     updateHistoryButtons();
     setStatus(state.mode === 'middle'
@@ -1004,6 +1041,8 @@ async function applyShorten() {
     updateHistoryButtons();
     setStatus('Taglio non riuscito: prova un asse diverso o una lunghezza meno vicina al bordo.');
   } finally {
+    targetGeometry.dispose();
+    if (remainderGeometry) remainderGeometry.dispose();
     hideBusy();
   }
 }

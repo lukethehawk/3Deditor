@@ -121,7 +121,7 @@ function clearShortenPlacement() {
     requestRender();
   }
   if (ui.shortenInfo) {
-    ui.shortenInfo.textContent = t('Accorcia il modello con un piano di taglio e richiudi la superficie.');
+    ui.shortenInfo.textContent = t('Seleziona un oggetto, poi accorcialo con un piano di taglio e richiudi la superficie.');
   }
   if (ui.applyShorten) ui.applyShorten.disabled = !model;
 }
@@ -1092,8 +1092,8 @@ function updateInspector() {
     },
     shorten: {
       title: 'Accorcia',
-      description: 'Taglia lungo X, Y o Z scegliendo lunghezza rimossa e centro del taglio. Utile per ridurre profondita o lunghezza di STL funzionali.',
-      hint: 'Accorcia: scegli asse, lunghezza rimossa e centro taglio, poi applica.',
+      description: 'Seleziona un oggetto, poi taglialo lungo X, Y o Z scegliendo lunghezza rimossa e centro del taglio.',
+      hint: 'Accorcia: seleziona un oggetto con doppio click, poi scegli asse, lunghezza e centro taglio.',
     },
     hollow: {
       title: 'Svuota',
@@ -1237,7 +1237,12 @@ function setTool(tool) {
     updateCutFields();
   }
   if (tool === 'shorten') {
-    clearSelection();
+    if (selected?.type === 'face' && selected.region?.triangles?.length) {
+      setSelectionMode('object', { clear: false, refresh: false });
+      selectObjectComponent(selected.region.triangles[0], selected.point);
+    } else {
+      setSelectionMode('object', { clear: false, refresh: false });
+    }
     resetShortenDefaults();
     drawShortenPreview();
   }
@@ -1284,7 +1289,7 @@ function setTool(tool) {
     gear: 'Ingranaggio: clicca il centro base, poi regola denti, modulo, spessore e foro.',
     plane: 'Piani: clicca il centro, scegli forma e dimensioni, poi applica la faccia piatta.',
     cut: 'Sottrai: scegli box o cilindro, clicca il punto e applica il taglio.',
-    shorten: 'Accorcia: regola asse, lunghezza rimossa e centro taglio.',
+    shorten: 'Accorcia: seleziona un oggetto con doppio click, poi regola asse, lunghezza e centro taglio.',
     hollow: 'Svuota: imposta lo spessore parete e applica al modello intero.',
     text: 'Testo: clicca il punto basso sinistro, poi scrivi e regola profondita e font.',
     line: 'Linea: crea guide indipendenti. Gli altri strumenti si agganciano a estremi, midpoint e segmenti.',
@@ -1673,6 +1678,10 @@ function setSelectedObjectFromTriangles(triangles, point, objectIndex = null) {
   ui.measureValue.value = `${triangles.length} ${t('facce')}`;
   ui.inspector.classList.add('open');
   setStatus(t('Oggetto selezionato'));
+  if (activeTool === 'shorten') {
+    resetShortenDefaults();
+    drawShortenPreview();
+  }
   return true;
 }
 
