@@ -166,54 +166,96 @@ function cloneGeometryWithMatrix(geometry, matrix) {
   return clone;
 }
 
+function patternMatricesFromInputs(source) {
+  const count = Math.min(Math.max(Math.floor(parseDecimal(ui.patternCount.value, 0)), 1), 100);
+  source.computeBoundingBox();
+  const center = source.boundingBox.getCenter(new THREE.Vector3());
+  const matrices = [];
+  if (ui.patternType.value === 'circular') {
+    const radius = parseDecimal(ui.patternRadius.value, 0);
+    if (!(radius > 0)) {
+      return { error: 'Inserisci un raggio valido per il pattern circolare.' };
+    }
+    const totalSlots = count + 1;
+    for (let index = 1; index <= count; index += 1) {
+      const angle = (Math.PI * 2 * index) / totalSlots;
+      matrices.push(matrixForCircularPattern(center, ui.patternAxis.value, radius, angle));
+    }
+  } else {
+    const offset = inputVector(ui.patternOffsetInputs);
+    if (offset.lengthSq() <= 1e-10) {
+      return { error: 'Inserisci almeno una distanza X/Y/Z diversa da zero.' };
+    }
+    for (let index = 1; index <= count; index += 1) {
+      matrices.push(new THREE.Matrix4().makeTranslation(
+          offset.x * index,
+          offset.y * index,
+          offset.z * index,
+      ));
+    }
+  }
+  return { count, matrices };
+}
+
+function drawPatternPreview() {
+  clearPatternPreview();
+  if (!patternDrawerOpen || !model) return;
+  const item = patternObjectIndex !== null ? objectItems[patternObjectIndex] : null;
+  if (!item) {
+    if (ui.applyPattern) ui.applyPattern.disabled = true;
+    return;
+  }
+  const source = extractTrianglesFromGeometry(model.geometry, item.triangles);
+  if (!source) {
+    if (ui.applyPattern) ui.applyPattern.disabled = true;
+    ui.patternReadout.textContent = t('Non riesco a leggere il corpo selezionato.');
+    return;
+  }
+  const pattern = patternMatricesFromInputs(source);
+  if (pattern.error) {
+    source.dispose();
+    if (ui.applyPattern) ui.applyPattern.disabled = true;
+    ui.patternReadout.textContent = t(pattern.error);
+    return;
+  }
+
+  const group = new THREE.Group();
+  for (const matrix of pattern.matrices) {
+    const clone = cloneGeometryWithMatrix(source, matrix);
+    const edgeGeometry = createDisplayEdgesGeometry(clone, MODEL_EDGE_ANGLE);
+    clone.dispose();
+    const lines = new THREE.LineSegments(edgeGeometry, patternPreviewLineMaterial);
+    lines.renderOrder = 18;
+    group.add(lines);
+  }
+  source.dispose();
+  patternPreview = group;
+  addTransientOverlay(patternPreview, 'pattern-preview');
+  if (ui.applyPattern) ui.applyPattern.disabled = false;
+  ui.patternReadout.textContent = currentLanguage === 'en'
+    ? `Preview: ${pattern.count} copies will be added.`
+    : `Anteprima: verranno aggiunte ${pattern.count} copie.`;
+}
+
 function applyPattern() {
   const item = patternObjectIndex !== null ? objectItems[patternObjectIndex] : null;
   if (!model || !item) {
     setStatus('Scegli un oggetto dal pannello Oggetti prima di creare un pattern.');
     return;
   }
-  const count = Math.min(Math.max(Math.floor(parseDecimal(ui.patternCount.value, 0)), 1), 100);
   const source = extractTrianglesFromGeometry(model.geometry, item.triangles);
   if (!source) {
     setStatus('Non riesco a leggere il corpo selezionato.');
     return;
   }
-  source.computeBoundingBox();
-  const center = source.boundingBox.getCenter(new THREE.Vector3());
-  const copies = [];
-  if (ui.patternType.value === 'circular') {
-    const radius = parseDecimal(ui.patternRadius.value, 0);
-    if (!(radius > 0)) {
-      source.dispose();
-      setStatus('Inserisci un raggio valido per il pattern circolare.');
-      return;
-    }
-    const totalSlots = count + 1;
-    for (let index = 1; index <= count; index += 1) {
-      const angle = (Math.PI * 2 * index) / totalSlots;
-      copies.push(cloneGeometryWithMatrix(
-        source,
-        matrixForCircularPattern(center, ui.patternAxis.value, radius, angle),
-      ));
-    }
-  } else {
-    const offset = inputVector(ui.patternOffsetInputs);
-    if (offset.lengthSq() <= 1e-10) {
-      source.dispose();
-      setStatus('Inserisci almeno una distanza X/Y/Z diversa da zero.');
-      return;
-    }
-    for (let index = 1; index <= count; index += 1) {
-      copies.push(cloneGeometryWithMatrix(
-        source,
-        new THREE.Matrix4().makeTranslation(
-          offset.x * index,
-          offset.y * index,
-          offset.z * index,
-        ),
-      ));
-    }
+  const pattern = patternMatricesFromInputs(source);
+  if (pattern.error) {
+    source.dispose();
+    setStatus(pattern.error);
+    drawPatternPreview();
+    return;
   }
+  const copies = pattern.matrices.map((matrix) => cloneGeometryWithMatrix(source, matrix));
   const finalGeometry = combineGeometries([model.geometry, ...copies]);
   source.dispose();
   copies.forEach((geometry) => geometry.dispose());
@@ -223,14 +265,14 @@ function applyPattern() {
   }
   snapshot({
     title: t('Creato pattern'),
-    detail: `${item.name}, ${count} ${t('copie')}`,
+    detail: `${item.name}, ${pattern.count} ${t('copie')}`,
   });
   setModelGeometry(finalGeometry, false, { preserveSketch: true });
   updateHistoryButtons();
   setPatternDrawerOpen(false);
   setStatus(currentLanguage === 'en'
-    ? `Pattern created: ${count} copies.`
-    : `Pattern creato: ${count} copie.`);
+    ? `Pattern created: ${pattern.count} copies.`
+    : `Pattern creato: ${pattern.count} copie.`);
 }
 
 function geometryToProjectPositions(geometry) {
@@ -520,7 +562,7 @@ ui.selectionMode.addEventListener('change', () => {
     : 'Modalita faccia: clicca una superficie del modello.'));
 });
 ui.applyTransform.addEventListener('click', transformCurrentModel);
-ui.alignFaceGround.addEventListener('click', () => rotateSelectedFaceDown(true));
+ui.alignFaceGround.addEventListener('click', placeTransformTargetOnBed);
 ui.rotateFaceDown.addEventListener('click', () => rotateSelectedFaceDown(false));
 ui.centerOrigin.addEventListener('click', centerTransformTargetOnOrigin);
 ui.scaleToMax.addEventListener('click', scaleTransformTargetToMax);
@@ -533,7 +575,19 @@ ui.scaleToMax.addEventListener('click', scaleTransformTargetToMax);
   input.addEventListener('change', drawTransformPreview);
 });
 ui.patternClose.addEventListener('click', () => setPatternDrawerOpen(false));
-ui.patternType.addEventListener('change', renderPatternDrawer);
+ui.patternType.addEventListener('change', () => {
+  renderPatternDrawer();
+  drawPatternPreview();
+});
+[
+  ui.patternCount,
+  ...ui.patternOffsetInputs,
+  ui.patternRadius,
+  ui.patternAxis,
+].forEach((input) => {
+  input.addEventListener('input', drawPatternPreview);
+  input.addEventListener('change', drawPatternPreview);
+});
 ui.applyPattern.addEventListener('click', applyPattern);
 ui.splitAxis.addEventListener('change', () => {
   resetSplitDefaults();

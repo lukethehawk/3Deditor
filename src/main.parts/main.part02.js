@@ -175,6 +175,14 @@ function clearTransformPreview() {
   requestRender();
 }
 
+function clearPatternPreview() {
+  if (!patternPreview) return;
+  scene.remove(patternPreview);
+  disposeObject(patternPreview);
+  patternPreview = null;
+  requestRender();
+}
+
 function clearSketch() {
   sketchPoints = [];
   sketchEdges = [];
@@ -306,7 +314,9 @@ function setPatternDrawerOpen(open, index = patternObjectIndex) {
   }
   ui.patternDrawer.classList.toggle('open', patternDrawerOpen);
   ui.patternDrawer.setAttribute('aria-hidden', String(!patternDrawerOpen));
+  if (!patternDrawerOpen) clearPatternPreview();
   renderPatternDrawer();
+  drawPatternPreview();
 }
 
 function renderPatternDrawer() {
@@ -895,11 +905,6 @@ function transformMatrixForBox(box, values) {
   return matrix;
 }
 
-function transformMatrixForGeometry(geometry, values) {
-  geometry.computeBoundingBox();
-  return transformMatrixForBox(geometry.boundingBox, values);
-}
-
 function resetTransformInputs() {
   ui.transformTranslateInputs.forEach((input) => {
     input.value = '0';
@@ -934,11 +939,7 @@ function transformedGeometryFromInputs() {
       transformMatrixForBox(box, values),
     );
   } else {
-    geometry = model.geometry.clone();
-    geometry.applyMatrix4(transformMatrixForGeometry(geometry, values));
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
+    return null;
   }
   return {
     geometry,
@@ -1004,12 +1005,18 @@ function currentTransformTarget() {
       triangles: [...selected.triangles],
     };
   }
-  model.geometry.computeBoundingBox();
-  return {
-    box: model.geometry.boundingBox.clone(),
-    label: t('tutto file'),
-    triangles: null,
-  };
+  return null;
+}
+
+function updateTransformQuickActions() {
+  if (!ui.applyTransform) return;
+  const hasTarget = Boolean(model && selected?.type === 'object' && selected.triangles?.length);
+  const hasFaceReference = Boolean(hasTarget && transformFaceReference);
+  ui.applyTransform.disabled = !hasTarget;
+  ui.alignFaceGround.disabled = !hasTarget;
+  ui.rotateFaceDown.disabled = !hasFaceReference;
+  ui.centerOrigin.disabled = !hasTarget;
+  ui.scaleToMax.disabled = !hasTarget;
 }
 
 function transformedTargetBox(target, matrix) {
@@ -1045,6 +1052,26 @@ function applyMatrixToTransformTarget(matrix, title, detail, status) {
   resetTransformInputs();
   requestRender();
   setStatus(status);
+}
+
+function placeTransformTargetOnBed() {
+  if (transformFaceReference) {
+    rotateSelectedFaceDown(true);
+    return;
+  }
+  const target = currentTransformTarget();
+  if (!target) {
+    setStatus('Apri un modello o seleziona un corpo prima di trasformare.');
+    return;
+  }
+  const matrix = new THREE.Matrix4().makeTranslation(0, 0, -target.box.min.z);
+  applyMatrixToTransformTarget(
+    matrix,
+    'Trasformato corpo',
+    t('appoggiato al piano'),
+    t('Corpo selezionato appoggiato al piano Z=0.'),
+  );
+  updateTransformQuickActions();
 }
 
 function transformRotationAround(center, quaternion) {
@@ -1085,6 +1112,7 @@ function rotateSelectedFaceDown(placeOnGround = false) {
       : t('Faccia selezionata ruotata verso il basso.'),
   );
   transformFaceReference = null;
+  updateTransformQuickActions();
 }
 
 function centerTransformTargetOnOrigin() {
@@ -1524,6 +1552,7 @@ function setTool(tool) {
   };
   if (statusByTool[tool]) setStatus(t(statusByTool[tool]));
   if (tool === 'pushpull') refreshPushPullHandle();
+  updateTransformQuickActions();
 }
 
 function raycastModel(clientX, clientY) {
@@ -1891,6 +1920,13 @@ function setSelectedObjectFromTriangles(triangles, point, objectIndex = null) {
     triangles,
     objectIndex,
   };
+  if (
+    activeTool === 'transform'
+    && transformFaceReference
+    && !triangles.includes(transformFaceReference.seedTriangle)
+  ) {
+    transformFaceReference = null;
+  }
 
   highlight = createSelectionBoxOverlay(box);
   highlight.renderOrder = 3;
@@ -1910,6 +1946,7 @@ function setSelectedObjectFromTriangles(triangles, point, objectIndex = null) {
     resetSplitDefaults();
     drawSplitPreview();
   }
+  updateTransformQuickActions();
   return true;
 }
 
@@ -1974,6 +2011,7 @@ function selectFaceRegion(region, point, options = {}) {
   updateModelActions();
   setStatus(t(status));
   refreshPushPullHandle();
+  updateTransformQuickActions();
 }
 
 function selectAt(clientX, clientY, mode = selectionMode) {

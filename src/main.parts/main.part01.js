@@ -135,6 +135,15 @@ const measureColors = {
   y: 0x2e9a52,
   z: 0x2477bd,
 };
+const patternPreviewLineMaterial = new THREE.LineBasicMaterial({
+  color: 0xe46f2b,
+  linewidth: 2,
+  transparent: true,
+  opacity: 0.9,
+  depthTest: false,
+  depthWrite: false,
+});
+patternPreviewLineMaterial.userData.shared = true;
 let pointMarkerTexture = null;
 
 let model = null;
@@ -155,6 +164,7 @@ let objectsDrawerOpen = false;
 let historyDrawerOpen = false;
 let patternDrawerOpen = false;
 let patternObjectIndex = null;
+let patternPreview = null;
 let pointerDown = null;
 let measurementStart = null;
 let measurementEnd = null;
@@ -1169,6 +1179,7 @@ const staticTranslations = {
     'Ruota Y': 'Rotate Y',
     'Ruota Z': 'Rotate Z',
     'Scala uniforme': 'Uniform scale',
+    'Appoggia sul piano': 'Place on bed',
     'Appoggia faccia selezionata': 'Place selected face on bed',
     'Ruota faccia in basso': 'Rotate face downward',
     'Centra su origine': 'Center on origin',
@@ -1189,6 +1200,8 @@ const staticTranslations = {
     'Apri un modello o seleziona un corpo prima di trasformare.': 'Open a model or select a body before transforming.',
     'Seleziona una faccia, poi apri Trasforma per usare questo comando.': 'Select a face, then open Transform to use this command.',
     'La faccia selezionata non ha una normale valida.': 'The selected face has no valid normal.',
+    'appoggiato al piano': 'placed on bed',
+    'Corpo selezionato appoggiato al piano Z=0.': 'Selected body placed on the Z=0 bed.',
     'faccia appoggiata al piano': 'face placed on bed',
     'faccia ruotata in basso': 'face rotated downward',
     'Faccia selezionata appoggiata al piano Z=0.': 'Selected face placed on the Z=0 bed.',
@@ -1497,6 +1510,7 @@ function clearSelection() {
   ui.measureValue.value = '-- mm';
   updateModelActions();
   renderObjectsDrawer();
+  updateTransformQuickActions();
 }
 
 function updateMeasureBoxMode() {
@@ -1564,6 +1578,7 @@ function clearTransientOverlays() {
   shortenPreview = null;
   textPreview = null;
   transformPreview = null;
+  patternPreview = null;
   sketchPreview = null;
   snapIndicator = null;
   if (pushPullHandleFrameRequest) {
