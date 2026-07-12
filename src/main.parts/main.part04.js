@@ -680,39 +680,31 @@ function createPushPullHandle(origin, normal) {
   const direction = normal.clone().normalize();
   const length = pushPullHandleLength();
   const group = new THREE.Group();
-  group.position.copy(origin).addScaledVector(direction, 0.45);
+  group.position.copy(origin).addScaledVector(direction, length * 0.62);
   group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
   group.userData.pushPullHandle = true;
   group.userData.origin = origin.clone();
   group.userData.normal = direction.clone();
 
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x0b84d8,
-    depthTest: false,
-    depthWrite: false,
-  });
-  const tipMaterial = new THREE.MeshBasicMaterial({
+  const sphereMaterial = new THREE.MeshBasicMaterial({
     color: 0xff7a22,
     depthTest: false,
     depthWrite: false,
   });
   const hitMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff7a22,
+    color: 0x0b84d8,
     transparent: true,
-    opacity: 0.08,
+    opacity: 0.14,
     depthTest: false,
     depthWrite: false,
   });
 
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, length * 0.7, 16), material);
-  shaft.position.z = length * 0.35;
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(3.8, 8, 24), tipMaterial);
-  cone.position.z = length * 0.76;
-  const hit = new THREE.Mesh(new THREE.SphereGeometry(7, 18, 12), hitMaterial);
-  hit.position.z = length * 0.82;
+  const radius = THREE.MathUtils.clamp(length * 0.075, 4.2, 7.2);
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 28, 18), sphereMaterial);
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.9, 24, 16), hitMaterial);
   hit.userData.pushPullHandleHit = true;
 
-  for (const child of [shaft, cone, hit]) {
+  for (const child of [sphere, hit]) {
     child.renderOrder = 80;
     child.userData.pushPullHandle = true;
     group.add(child);
@@ -728,7 +720,7 @@ function refreshPushPullHandle() {
   pushPullHandle = createPushPullHandle(selectedRegionCenter(), normal);
   scene.add(pushPullHandle);
   ui.pushPullVisualHelp.hidden = false;
-  setStatus('Trascina la freccia: Shift aggancia a 1 mm, Esc annulla.');
+  setStatus('Trascina la sfera: Shift aggancia a 1 mm, Esc annulla.');
   requestRender();
 }
 

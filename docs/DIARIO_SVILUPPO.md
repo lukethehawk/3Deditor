@@ -304,7 +304,7 @@ index-based names with stable body IDs.
 - Normal STL planar faces and isolated 2D planes use direct mesh Push/Pull.
 - 2D profiles sitting on an existing coplanar STL face can create a local boolean
   cutter/addition volume.
-- The optional visual arrow control is stored in `localStorage` as
+- The optional visual sphere control is stored in `localStorage` as
   `forma3d-pushpull-visual-handle`. It only appears while `activeTool ===
   'pushpull'`, the toggle is enabled and `selected.type === 'face'`.
 
@@ -312,11 +312,11 @@ For open 2D faces, `pushPullGeometry()` creates the missing side walls so a flat
 face becomes a prism.
 
 Visual Push/Pull does not modify the real mesh during drag. It displays a
-separate arrow overlay along `selected.normal`, converts pointer movement into a
+separate draggable sphere along `selected.normal`, converts pointer movement into a
 signed distance, updates the numeric distance field and previews with
 `createPushPullRegionGeometry()`. `Shift` snaps the distance to 1 mm and `Esc`
 cancels the drag. On large models over 250k triangles, or selected regions over
-20k triangles, the preview is simplified to arrow + distance/status so the app
+20k triangles, the preview is simplified to sphere + distance/status so the app
 does not block. On pointer release it calls the existing `applyPushPull()` once,
 so undo remains a single snapshot and the numeric workflow stays unchanged.
 
@@ -997,14 +997,14 @@ lungo la normale della regione. E' una modifica mesh diretta, non una booleana
 CAD. Funziona bene su facce piane semplici; puo' creare geometrie non manifold
 se usato su mesh complesse o facce con topologia difficile.
 
-Il controllo visuale opzionale con freccia e' salvato in `localStorage` come
-`forma3d-pushpull-visual-handle`. La freccia appare solo quando lo strumento
+Il controllo visuale opzionale con sfera e' salvato in `localStorage` come
+`forma3d-pushpull-visual-handle`. La sfera appare solo quando lo strumento
 attivo e' `pushpull`, il toggle e' acceso e la selezione corrente e' una faccia.
 Durante il drag non modifica la mesh reale: mostra un overlay lungo
 `selected.normal`, aggiorna il campo numerico e crea una preview separata con
 `createPushPullRegionGeometry()`. `Shift` aggancia a 1 mm, `Esc` annulla. Sopra
 250k triangoli totali o 20k triangoli nella regione selezionata, la preview si
-semplifica a freccia + distanza/stato per non bloccare il browser. Al rilascio
+semplifica a sfera + distanza/stato per non bloccare il browser. Al rilascio
 chiama una sola volta `applyPushPull()`, quindi l'undo resta un singolo snapshot.
 
 Quando la regione e' una faccia aperta, come un piano 2D appoggiato su uno STL,
